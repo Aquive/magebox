@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'VERSION'
       - 'vitepress/**'
       - 'CHANGELOG.md'
       - 'README.md'
@@ -26,6 +27,10 @@ jobs:
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 46.62.158.225 >> ~/.ssh/known_hosts
+
+      - name: Upload VERSION file to server
+        run: |
+          scp VERSION magebox@46.62.158.225:/home/magebox/VERSION
 
       - name: Upload source to server
         run: |

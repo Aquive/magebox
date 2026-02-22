@@ -1,4 +1,7 @@
 import { defineConfig } from 'vitepress'
+import { readFileSync } from 'fs'
+
+const version = readFileSync('../VERSION', 'utf-8').trim()
 
 export default defineConfig({
   title: "MageBox",
@@ -32,7 +35,7 @@ export default defineConfig({
       { text: 'Reference', link: '/reference/commands' },
       { text: 'About', link: '/about' },
       {
-        text: 'v1.3.0',
+        text: 'v' + version,
         items: [
           { text: 'Changelog', link: '/changelog' },
           { text: 'Roadmap', link: '/roadmap' },

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: "MageBox"
   text: "Native Magento Development"
-  tagline: v1.3.0 - Project-level nginx snippets & vhost template override
+  tagline: Native Magento Development Environment
   image:
     src: /logo.svg
     alt: MageBox

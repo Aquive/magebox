@@ -2,7 +2,7 @@
 # Build and development automation
 
 BINARY_NAME=magebox
-VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION=$(shell cat VERSION 2>/dev/null || git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_DIR=build
 GO=go
 GOFLAGS=-ldflags "-X main.version=$(VERSION)"
