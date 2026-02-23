@@ -17,6 +17,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Minimum versions to track — anything older is intentionally excluded
+          MIN_MAGEOS="1.0.5"
+          MIN_MAGENTO="2.4.6-p7"
+
+          # Helper: compare versions (returns 0 if $1 >= $2)
+          version_gte() {
+            [ "$(printf '%s\n%s' "$1" "$2" | sort -V | head -n1)" = "$2" ]
+          }
+
           echo "## Checking for new upstream releases" > report.md
           NEW_FOUND=false
 
@@ -25,14 +34,16 @@ jobs:
           MAGEOS_TAGS=$(gh api repos/mage-os/mageos-magento2/tags --paginate --jq '.[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
           KNOWN_MAGEOS=$(grep -A1 'version:' lib/templates/config/versions.yaml | grep -oP '"\K[0-9]+\.[0-9]+\.[0-9]+(?=")' | sort -V)
 
+          MAGEOS_NEW=false
           for tag in $MAGEOS_TAGS; do
-            if ! echo "$KNOWN_MAGEOS" | grep -qx "$tag"; then
+            if version_gte "$tag" "$MIN_MAGEOS" && ! echo "$KNOWN_MAGEOS" | grep -qx "$tag"; then
               echo "- **$tag** (new)" >> report.md
               NEW_FOUND=true
+              MAGEOS_NEW=true
             fi
           done
 
-          if ! grep -q "new" report.md 2>/dev/null || ! grep -q "MageOS" <(grep "new" report.md); then
+          if [ "$MAGEOS_NEW" = "false" ]; then
             echo "- All versions up to date" >> report.md
           fi
 
@@ -41,14 +52,16 @@ jobs:
           MAGENTO_TAGS=$(gh api repos/magento/magento2/tags --paginate --jq '.[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-p[0-9]+)?$' | sort -V | tail -20)
           KNOWN_MAGENTO=$(grep -A1 'version:' lib/templates/config/versions.yaml | grep -oP '"\K2\.[0-9]+\.[0-9]+(-p[0-9]+)?(?=")' | sort -V)
 
+          MAGENTO_NEW=false
           for tag in $MAGENTO_TAGS; do
-            if ! echo "$KNOWN_MAGENTO" | grep -qx "$tag"; then
+            if version_gte "$tag" "$MIN_MAGENTO" && ! echo "$KNOWN_MAGENTO" | grep -qx "$tag"; then
               echo "- **$tag** (new)" >> report.md
               NEW_FOUND=true
+              MAGENTO_NEW=true
             fi
           done
 
-          if ! grep -q "Magento" <(grep "new" report.md 2>/dev/null); then
+          if [ "$MAGENTO_NEW" = "false" ]; then
             echo "- All versions up to date" >> report.md
           fi
 
