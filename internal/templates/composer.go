@@ -78,27 +78,45 @@ type MageOSVersion struct {
 // GetMagentoVersions returns available Magento versions
 func GetMagentoVersions() map[string]MagentoVersion {
 	return map[string]MagentoVersion{
+		"2.4.8-p3": {
+			Version:            "2.4.8-p3",
+			ProductVersion:     "2.4.8-p3",
+			RootUpdatePlugin:   "^2.0.4",
+			VersionAuditPlugin: "~0.1",
+		},
+		"2.4.8-p2": {
+			Version:            "2.4.8-p2",
+			ProductVersion:     "2.4.8-p2",
+			RootUpdatePlugin:   "^2.0.4",
+			VersionAuditPlugin: "~0.1",
+		},
+		"2.4.8-p1": {
+			Version:            "2.4.8-p1",
+			ProductVersion:     "2.4.8-p1",
+			RootUpdatePlugin:   "^2.0.4",
+			VersionAuditPlugin: "~0.1",
+		},
+		"2.4.8": {
+			Version:            "2.4.8",
+			ProductVersion:     "2.4.8",
+			RootUpdatePlugin:   "^2.0.4",
+			VersionAuditPlugin: "~0.1",
+		},
+		"2.4.7-p4": {
+			Version:            "2.4.7-p4",
+			ProductVersion:     "2.4.7-p4",
+			RootUpdatePlugin:   "^2.0.4",
+			VersionAuditPlugin: "~0.1",
+		},
 		"2.4.7-p3": {
 			Version:            "2.4.7-p3",
 			ProductVersion:     "2.4.7-p3",
 			RootUpdatePlugin:   "^2.0.4",
 			VersionAuditPlugin: "~0.1",
 		},
-		"2.4.7-p2": {
-			Version:            "2.4.7-p2",
-			ProductVersion:     "2.4.7-p2",
-			RootUpdatePlugin:   "^2.0.4",
-			VersionAuditPlugin: "~0.1",
-		},
-		"2.4.7-p1": {
-			Version:            "2.4.7-p1",
-			ProductVersion:     "2.4.7-p1",
-			RootUpdatePlugin:   "^2.0.4",
-			VersionAuditPlugin: "~0.1",
-		},
-		"2.4.7": {
-			Version:            "2.4.7",
-			ProductVersion:     "2.4.7",
+		"2.4.6-p8": {
+			Version:            "2.4.6-p8",
+			ProductVersion:     "2.4.6-p8",
 			RootUpdatePlugin:   "^2.0.4",
 			VersionAuditPlugin: "~0.1",
 		},
@@ -108,29 +126,41 @@ func GetMagentoVersions() map[string]MagentoVersion {
 			RootUpdatePlugin:   "^2.0.4",
 			VersionAuditPlugin: "~0.1",
 		},
-		"2.4.6-p6": {
-			Version:            "2.4.6-p6",
-			ProductVersion:     "2.4.6-p6",
-			RootUpdatePlugin:   "^2.0.4",
-			VersionAuditPlugin: "~0.1",
-		},
-		"2.4.5-p9": {
-			Version:            "2.4.5-p9",
-			ProductVersion:     "2.4.5-p9",
-			RootUpdatePlugin:   "^2.0.4",
-			VersionAuditPlugin: "~0.1",
-		},
 	}
 }
 
 // GetMageOSVersions returns available MageOS versions
 func GetMageOSVersions() map[string]MageOSVersion {
 	return map[string]MageOSVersion{
+		"2.1.0": {
+			Version:            "2.1.0",
+			ProductVersion:     "2.1.0",
+			RootUpdatePlugin:   "2.1.0",
+			VersionAuditPlugin: "2.1.0",
+		},
 		"2.0.0": {
 			Version:            "2.0.0",
 			ProductVersion:     "2.0.0",
 			RootUpdatePlugin:   "2.0.0",
 			VersionAuditPlugin: "2.0.0",
+		},
+		"1.3.1": {
+			Version:            "1.3.1",
+			ProductVersion:     "1.3.1",
+			RootUpdatePlugin:   "1.3.1",
+			VersionAuditPlugin: "1.3.1",
+		},
+		"1.3.0": {
+			Version:            "1.3.0",
+			ProductVersion:     "1.3.0",
+			RootUpdatePlugin:   "1.3.0",
+			VersionAuditPlugin: "1.3.0",
+		},
+		"1.2.0": {
+			Version:            "1.2.0",
+			ProductVersion:     "1.2.0",
+			RootUpdatePlugin:   "1.2.0",
+			VersionAuditPlugin: "1.2.0",
 		},
 		"1.1.0": {
 			Version:            "1.1.0",
@@ -144,41 +174,17 @@ func GetMageOSVersions() map[string]MageOSVersion {
 			RootUpdatePlugin:   "1.0.5",
 			VersionAuditPlugin: "1.0.5",
 		},
-		"1.0.3": {
-			Version:            "1.0.3",
-			ProductVersion:     "1.0.3",
-			RootUpdatePlugin:   "1.0.3",
-			VersionAuditPlugin: "1.0.3",
-		},
-		"1.0.2": {
-			Version:            "1.0.2",
-			ProductVersion:     "1.0.2",
-			RootUpdatePlugin:   "1.0.2",
-			VersionAuditPlugin: "1.0.2",
-		},
-		"1.0.1": {
-			Version:            "1.0.1",
-			ProductVersion:     "1.0.1",
-			RootUpdatePlugin:   "1.0.1",
-			VersionAuditPlugin: "1.0.1",
-		},
-		"1.0.0": {
-			Version:            "1.0.0",
-			ProductVersion:     "1.0.0",
-			RootUpdatePlugin:   "1.0.0",
-			VersionAuditPlugin: "1.0.0",
-		},
 	}
 }
 
 // GetLatestMagentoVersion returns the latest Magento version
 func GetLatestMagentoVersion() string {
-	return "2.4.7-p3"
+	return "2.4.8-p3"
 }
 
 // GetLatestMageOSVersion returns the latest MageOS version
 func GetLatestMageOSVersion() string {
-	return "2.0.0"
+	return "2.1.0"
 }
 
 // GenerateMagentoComposerJSON generates a composer.json for Magento

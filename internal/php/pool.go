@@ -95,13 +95,10 @@ type PoolConfig struct {
 // defaultPHPINI returns the default PHP INI settings for Magento
 func defaultPHPINI() map[string]string {
 	return map[string]string{
-		// OPcache settings
-		"opcache.enable":                  "1",
-		"opcache.memory_consumption":      "512",
-		"opcache.max_accelerated_files":   "130986",
-		"opcache.validate_timestamps":     "1",
-		"opcache.interned_strings_buffer": "20",
-		// Note: opcache.consistency_checks was removed in PHP 8.3
+		// OPcache disabled by default for development (avoids JIT segfaults, stale cache issues)
+		"opcache.enable":     "0",
+		"opcache.enable_cli": "0",
+		"opcache.jit":        "off",
 		// Realpath cache
 		"realpath_cache_size": "10M",
 		"realpath_cache_ttl":  "7200",
