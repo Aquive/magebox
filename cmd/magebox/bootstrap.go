@@ -768,6 +768,21 @@ func runBootstrap(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Composer binary (the real composer, not our wrapper)
+	inst := bootstrapper.GetInstaller()
+	if inst.IsRealComposerInstalled() {
+		fmt.Println("  Composer already installed " + cli.Success("✓"))
+	} else {
+		fmt.Print("  Installing Composer... ")
+		if err := inst.InstallComposer(); err != nil {
+			fmt.Println(cli.Error("failed"))
+			cli.PrintWarning("Composer installation failed: %v", err)
+			cli.PrintInfo("Install manually: https://getcomposer.org/download/")
+		} else {
+			fmt.Println(cli.Success("done"))
+		}
+	}
+
 	// Composer wrapper
 	if wrapperMgr.IsComposerInstalled() {
 		fmt.Println("  Composer wrapper already installed " + cli.Success("✓"))
