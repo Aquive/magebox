@@ -5,9 +5,16 @@ import (
 	"strings"
 )
 
+// Project types
+const (
+	ProjectTypeMagento = "magento"
+	ProjectTypeLaravel = "laravel"
+)
+
 // Config represents the merged configuration from .magebox and .magebox.local
 type Config struct {
 	Name     string             `yaml:"name"`
+	Type     string             `yaml:"type,omitempty"` // Project type: "magento" (default) or "laravel"
 	Domains  []Domain           `yaml:"domains"`
 	PHP      string             `yaml:"php"`
 	PHPINI   map[string]string  `yaml:"php_ini,omitempty"`
@@ -16,6 +23,32 @@ type Config struct {
 	Env      map[string]string  `yaml:"env,omitempty"`
 	Commands map[string]Command `yaml:"commands,omitempty"`
 	Testing  *TestingConfig     `yaml:"testing,omitempty"`
+}
+
+// GetType returns the project type, defaulting to "magento"
+func (c *Config) GetType() string {
+	if c.Type == "" {
+		return ProjectTypeMagento
+	}
+	return c.Type
+}
+
+// IsMagento returns true if this is a Magento project
+func (c *Config) IsMagento() bool {
+	return c.GetType() == ProjectTypeMagento
+}
+
+// IsLaravel returns true if this is a Laravel project
+func (c *Config) IsLaravel() bool {
+	return c.GetType() == ProjectTypeLaravel
+}
+
+// GetDefaultRoot returns the default document root for this project type
+func (c *Config) GetDefaultRoot() string {
+	if c.GetType() == ProjectTypeLaravel {
+		return "public"
+	}
+	return "pub"
 }
 
 // TestingConfig represents the testing configuration
@@ -180,11 +213,23 @@ func (s *ServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // GetRoot returns the document root, defaulting to "pub"
+// Use GetRootForType when the project type is known
 func (d *Domain) GetRoot() string {
 	if d.Root == "" {
 		return "pub"
 	}
 	return d.Root
+}
+
+// GetRootForType returns the document root, using the project type default if not explicitly set
+func (d *Domain) GetRootForType(projectType string) string {
+	if d.Root != "" {
+		return d.Root
+	}
+	if projectType == ProjectTypeLaravel {
+		return "public"
+	}
+	return "pub"
 }
 
 // IsSSLEnabled returns whether SSL is enabled, defaulting to true

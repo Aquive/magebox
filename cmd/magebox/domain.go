@@ -59,7 +59,7 @@ var (
 
 func init() {
 	domainAddCmd.Flags().StringVar(&domainStoreCode, "store-code", "", "Magento store code (default: \"default\")")
-	domainAddCmd.Flags().StringVar(&domainRoot, "root", "pub", "Document root relative to project")
+	domainAddCmd.Flags().StringVar(&domainRoot, "root", "", "Document root relative to project (default: \"pub\" for Magento, \"public\" for Laravel)")
 	domainAddCmd.Flags().BoolVar(&domainSSL, "ssl", true, "Enable SSL for the domain")
 
 	domainCmd.AddCommand(domainAddCmd)

@@ -20,6 +20,9 @@ import (
 //go:embed templates/vhost.conf.tmpl
 var vhostTemplateEmbed string
 
+//go:embed templates/vhost-laravel.conf.tmpl
+var vhostLaravelTemplateEmbed string
+
 //go:embed templates/proxy.conf.tmpl
 var proxyTemplateEmbed string
 
@@ -29,6 +32,7 @@ var upstreamTemplateEmbed string
 func init() {
 	// Register embedded templates as fallbacks
 	lib.RegisterFallbackTemplate(lib.TemplateNginx, "vhost.conf.tmpl", vhostTemplateEmbed)
+	lib.RegisterFallbackTemplate(lib.TemplateNginx, "vhost-laravel.conf.tmpl", vhostLaravelTemplateEmbed)
 	lib.RegisterFallbackTemplate(lib.TemplateNginx, "proxy.conf.tmpl", proxyTemplateEmbed)
 	lib.RegisterFallbackTemplate(lib.TemplateNginx, "upstream.conf.tmpl", upstreamTemplateEmbed)
 }
@@ -56,6 +60,7 @@ type VhostGenerator struct {
 type VhostConfig struct {
 	ProjectName    string
 	ProjectPath    string // Absolute path to project root (for config file references)
+	ProjectType    string // Project type: "magento" or "laravel"
 	Domain         string
 	DocumentRoot   string
 	PHPVersion     string
@@ -147,8 +152,9 @@ func (g *VhostGenerator) Generate(cfg *config.Config, projectPath string) error 
 		vhostCfg := VhostConfig{
 			ProjectName:   cfg.Name,
 			ProjectPath:   projectPath,
+			ProjectType:   cfg.GetType(),
 			Domain:        domain.Host,
-			DocumentRoot:  filepath.Join(projectPath, domain.GetRoot()),
+			DocumentRoot:  filepath.Join(projectPath, domain.GetRootForType(cfg.GetType())),
 			PHPVersion:    cfg.PHP,
 			PHPSocketPath: g.getPHPSocketPath(cfg.Name, cfg.PHP),
 			SSLEnabled:    domain.IsSSLEnabled(),
@@ -219,6 +225,14 @@ func (g *VhostGenerator) getPHPSocketPath(projectName, phpVersion string) string
 	return filepath.Join(g.platform.MageBoxDir(), "run", fmt.Sprintf("%s-php%s.sock", projectName, phpVersion))
 }
 
+// getVhostTemplateName returns the vhost template filename based on project type
+func getVhostTemplateName(projectType string) string {
+	if projectType == config.ProjectTypeLaravel {
+		return "vhost-laravel.conf.tmpl"
+	}
+	return "vhost.conf.tmpl"
+}
+
 // renderVhost renders the vhost template
 func (g *VhostGenerator) renderVhost(cfg VhostConfig) (string, error) {
 	var tmplContent string
@@ -229,8 +243,10 @@ func (g *VhostGenerator) renderVhost(cfg VhostConfig) (string, error) {
 		tmplContent = string(data)
 	} else {
 		// Fall back to global template (yaml-local → yaml → embedded)
+		// Select template based on project type
+		templateName := getVhostTemplateName(cfg.ProjectType)
 		var err error
-		tmplContent, err = lib.GetTemplate(lib.TemplateNginx, "vhost.conf.tmpl")
+		tmplContent, err = lib.GetTemplate(lib.TemplateNginx, templateName)
 		if err != nil {
 			return "", err
 		}

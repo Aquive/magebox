@@ -51,13 +51,15 @@ func TestNewManager(t *testing.T) {
 
 func TestManager_Init(t *testing.T) {
 	m, tmpDir := setupTestManager(t)
+	// Use temp dir as HOME so global config defaults apply (TLD=test)
+	t.Setenv("HOME", tmpDir)
 
 	projectPath := filepath.Join(tmpDir, "myproject")
 	if err := os.MkdirAll(projectPath, 0755); err != nil {
 		t.Fatalf("failed to create project dir: %v", err)
 	}
 
-	err := m.Init(projectPath, "mystore")
+	err := m.Init(projectPath, "mystore", "magento")
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -99,12 +101,12 @@ func TestManager_InitAlreadyExists(t *testing.T) {
 	}
 
 	// Create first time
-	if err := m.Init(projectPath, "mystore"); err != nil {
+	if err := m.Init(projectPath, "mystore", "magento"); err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
 
 	// Try to create again - should fail
-	err := m.Init(projectPath, "mystore")
+	err := m.Init(projectPath, "mystore", "magento")
 	if err == nil {
 		t.Errorf("Init should fail when %s already exists", config.ConfigFileName)
 	}

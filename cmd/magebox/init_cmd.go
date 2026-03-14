@@ -14,6 +14,10 @@ import (
 	"qoliber/magebox/internal/project"
 )
 
+var (
+	initProjectType string
+)
+
 var initCmd = &cobra.Command{
 	Use:   "init [name]",
 	Short: "Initialize a new MageBox project",
@@ -23,6 +27,7 @@ var initCmd = &cobra.Command{
 }
 
 func init() {
+	initCmd.Flags().StringVar(&initProjectType, "type", config.ProjectTypeMagento, "Project type: \"magento\" or \"laravel\"")
 	rootCmd.AddCommand(initCmd)
 }
 
@@ -65,7 +70,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	mgr := project.NewManager(p)
-	if err := mgr.Init(cwd, projectName); err != nil {
+	if err := mgr.Init(cwd, projectName, initProjectType); err != nil {
 		return err
 	}
 

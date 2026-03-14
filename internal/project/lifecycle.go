@@ -554,7 +554,7 @@ func (e *PHPNotInstalledError) Error() string {
 }
 
 // Init initializes a new .magebox.yaml file in the given directory
-func (m *Manager) Init(projectPath string, projectName string) error {
+func (m *Manager) Init(projectPath string, projectName string, projectType string) error {
 	configPath := filepath.Join(projectPath, config.ConfigFileName)
 
 	// Check if file already exists
@@ -570,7 +570,10 @@ func (m *Manager) Init(projectPath string, projectName string) error {
 	// Derive domain from project name
 	domain := projectName + "." + tld
 
-	content := fmt.Sprintf(`name: %s
+	var content string
+	if projectType == config.ProjectTypeLaravel {
+		content = fmt.Sprintf(`name: %s
+type: laravel
 domains:
   - host: %s
 php: "8.2"
@@ -578,6 +581,16 @@ services:
   mysql: "8.0"
   redis: true
 `, projectName, domain)
+	} else {
+		content = fmt.Sprintf(`name: %s
+domains:
+  - host: %s
+php: "8.2"
+services:
+  mysql: "8.0"
+  redis: true
+`, projectName, domain)
+	}
 
 	return os.WriteFile(configPath, []byte(content), 0644)
 }
