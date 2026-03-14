@@ -593,6 +593,30 @@ func (u *UbuntuInstaller) InstallTideways(versions []string) error {
 	return nil
 }
 
+// UninstallPHP removes all PHP packages from the system
+func (u *UbuntuInstaller) UninstallPHP() error {
+	if err := u.RunSudo("apt", "purge", "-y", "php*"); err != nil {
+		return fmt.Errorf("failed to purge PHP packages: %w", err)
+	}
+	return u.RunSudo("apt", "autoremove", "-y")
+}
+
+// UninstallNginx removes Nginx from the system
+func (u *UbuntuInstaller) UninstallNginx() error {
+	if err := u.RunSudo("apt", "purge", "-y", "nginx", "nginx-common"); err != nil {
+		return fmt.Errorf("failed to purge Nginx packages: %w", err)
+	}
+	return u.RunSudo("apt", "autoremove", "-y")
+}
+
+// UninstallDnsmasq removes dnsmasq from the system
+func (u *UbuntuInstaller) UninstallDnsmasq() error {
+	if err := u.RunSudo("apt", "purge", "-y", "dnsmasq", "dnsmasq-base"); err != nil {
+		return fmt.Errorf("failed to purge dnsmasq packages: %w", err)
+	}
+	return u.RunSudo("apt", "autoremove", "-y")
+}
+
 // getArchitecture returns the dpkg architecture (e.g., "amd64", "arm64")
 func (u *UbuntuInstaller) getArchitecture() (string, error) {
 	out, err := exec.Command("dpkg", "--print-architecture").Output()

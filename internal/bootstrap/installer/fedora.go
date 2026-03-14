@@ -534,6 +534,30 @@ func (f *FedoraInstaller) InstallTideways(versions []string) error {
 	return nil
 }
 
+// UninstallPHP removes all PHP packages from the system
+func (f *FedoraInstaller) UninstallPHP() error {
+	if err := f.RunSudo("dnf", "remove", "-y", "php*"); err != nil {
+		return fmt.Errorf("failed to remove PHP packages: %w", err)
+	}
+	return f.RunSudo("dnf", "autoremove", "-y")
+}
+
+// UninstallNginx removes Nginx from the system
+func (f *FedoraInstaller) UninstallNginx() error {
+	if err := f.RunSudo("dnf", "remove", "-y", "nginx"); err != nil {
+		return fmt.Errorf("failed to remove Nginx: %w", err)
+	}
+	return f.RunSudo("dnf", "autoremove", "-y")
+}
+
+// UninstallDnsmasq removes dnsmasq from the system
+func (f *FedoraInstaller) UninstallDnsmasq() error {
+	if err := f.RunSudo("dnf", "remove", "-y", "dnsmasq"); err != nil {
+		return fmt.Errorf("failed to remove dnsmasq: %w", err)
+	}
+	return f.RunSudo("dnf", "autoremove", "-y")
+}
+
 // PackageManager returns "dnf" for Fedora
 func (f *FedoraInstaller) PackageManager() string {
 	return "dnf"

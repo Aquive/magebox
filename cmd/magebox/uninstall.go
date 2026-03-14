@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"qoliber/magebox/internal/bootstrap"
 	"qoliber/magebox/internal/cli"
 	"qoliber/magebox/internal/dns"
 	"qoliber/magebox/internal/docker"
@@ -19,9 +20,10 @@ import (
 )
 
 var (
-	uninstallForce      bool
-	uninstallKeepVhosts bool
-	uninstallDryRun     bool
+	uninstallForce         bool
+	uninstallKeepVhosts    bool
+	uninstallDryRun        bool
+	uninstallPurgePackages bool
 )
 
 var uninstallCmd = &cobra.Command{
@@ -35,7 +37,8 @@ var uninstallCmd = &cobra.Command{
   - Removes port forwarding rules (macOS)
   - Stops and disables dnsmasq
 
-Note: This does not uninstall system packages (PHP, nginx, etc.)`,
+Note: This does not uninstall system packages (PHP, nginx, etc.)
+Use --purge-packages to also remove system packages.`,
 	RunE: runUninstall,
 }
 
@@ -43,6 +46,7 @@ func init() {
 	uninstallCmd.Flags().BoolVarP(&uninstallForce, "force", "f", false, "Skip confirmation prompt")
 	uninstallCmd.Flags().BoolVar(&uninstallKeepVhosts, "keep-vhosts", false, "Keep nginx vhost configurations")
 	uninstallCmd.Flags().BoolVar(&uninstallDryRun, "dry-run", false, "Show what would be removed without removing")
+	uninstallCmd.Flags().BoolVar(&uninstallPurgePackages, "purge-packages", false, "Also remove system packages (PHP, nginx, dnsmasq)")
 	rootCmd.AddCommand(uninstallCmd)
 }
 
@@ -73,8 +77,15 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 	fmt.Println(cli.Bullet("Stop and disable dnsmasq"))
 	fmt.Println()
 
+	if uninstallPurgePackages {
+		fmt.Println(cli.Bullet("Purge system packages (PHP, Nginx, dnsmasq)"))
+	}
+
+	fmt.Println()
 	fmt.Println(cli.Subtitle("This will NOT remove:"))
-	fmt.Println(cli.Bullet("System packages (PHP, nginx, dnsmasq binaries, etc.)"))
+	if !uninstallPurgePackages {
+		fmt.Println(cli.Bullet("System packages (PHP, nginx, dnsmasq) — use --purge-packages"))
+	}
 	fmt.Println(cli.Bullet("Docker images"))
 	fmt.Println(cli.Bullet("Project files or .magebox.yaml configs"))
 	fmt.Println(cli.Bullet("SSL certificates"))
@@ -267,6 +278,43 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 		fmt.Println("  dnsmasq not installed")
 	}
 	fmt.Println()
+
+	// Step 7: Purge system packages (if requested)
+	if uninstallPurgePackages {
+		fmt.Println(cli.Header("Step 7: Removing system packages"))
+
+		bootstrapper, err := bootstrap.NewBootstrapper(p)
+		if err != nil {
+			cli.PrintWarning("Cannot determine platform installer: %v", err)
+		} else {
+			inst := bootstrapper.GetInstaller()
+
+			fmt.Print("  Removing PHP... ")
+			if err := inst.UninstallPHP(); err != nil {
+				fmt.Println(cli.Error("failed"))
+				cli.PrintWarning("PHP removal: %v", err)
+			} else {
+				fmt.Println(cli.Success("done"))
+			}
+
+			fmt.Print("  Removing Nginx... ")
+			if err := inst.UninstallNginx(); err != nil {
+				fmt.Println(cli.Error("failed"))
+				cli.PrintWarning("Nginx removal: %v", err)
+			} else {
+				fmt.Println(cli.Success("done"))
+			}
+
+			fmt.Print("  Removing dnsmasq... ")
+			if err := inst.UninstallDnsmasq(); err != nil {
+				fmt.Println(cli.Error("failed"))
+				cli.PrintWarning("dnsmasq removal: %v", err)
+			} else {
+				fmt.Println(cli.Success("done"))
+			}
+		}
+		fmt.Println()
+	}
 
 	cli.PrintSuccess("MageBox components removed")
 	fmt.Println()
