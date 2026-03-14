@@ -13,8 +13,7 @@
 {{if .UseVarnish}}
 # Varnish-enabled: HTTPS proxies to Varnish, HTTP backend handles requests
 server {
-    listen {{.HTTPSPort}} ssl;
-    http2 on;
+    listen {{.HTTPSPort}} ssl http2;
     server_name {{.Domain}};
 
     access_log {{.AccessLog}};
@@ -72,8 +71,7 @@ server {
 }
 
 server {
-    listen {{.HTTPSPort}} ssl;
-    http2 on;
+    listen {{.HTTPSPort}} ssl http2;
     server_name {{.Domain}};
 
     access_log {{.AccessLog}};
