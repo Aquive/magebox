@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"qoliber/magebox/internal/platform"
@@ -76,6 +77,100 @@ func (b *BaseInstaller) WriteFile(path, content string) error {
 // CommandExists checks if a command is available
 func (b *BaseInstaller) CommandExists(name string) bool {
 	return platform.CommandExists(name)
+}
+
+// IsRealComposerInstalled checks if the real Composer binary (not our wrapper) is installed
+func (b *BaseInstaller) IsRealComposerInstalled() bool {
+	wrapperDir := filepath.Join(b.Platform.MageBoxDir(), "bin")
+
+	// Check common locations
+	locations := []string{
+		"/usr/local/bin/composer",
+		"/usr/local/bin/composer.phar",
+		"/opt/homebrew/bin/composer",
+	}
+
+	homeDir, _ := os.UserHomeDir()
+	if homeDir != "" {
+		locations = append(locations,
+			filepath.Join(homeDir, ".composer", "composer.phar"),
+			filepath.Join(homeDir, "composer.phar"),
+		)
+	}
+
+	for _, loc := range locations {
+		if _, err := os.Stat(loc); err == nil {
+			return true
+		}
+	}
+
+	// Search PATH, skipping our wrapper directory
+	pathEnv := os.Getenv("PATH")
+	for _, dir := range strings.Split(pathEnv, string(os.PathListSeparator)) {
+		if dir == wrapperDir {
+			continue
+		}
+		composerPath := filepath.Join(dir, "composer")
+		if info, err := os.Stat(composerPath); err == nil && info.Mode()&0111 != 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// InstallComposer downloads and installs the Composer PHP dependency manager
+func (b *BaseInstaller) InstallComposer() error {
+	if b.IsRealComposerInstalled() {
+		return nil
+	}
+
+	// Find a PHP binary to use for the installer
+	phpBin := b.findPHPBinary()
+	if phpBin == "" {
+		return fmt.Errorf("PHP is required to install Composer but was not found")
+	}
+
+	// Download composer installer to a temp file
+	tmpDir := os.TempDir()
+	setupPath := filepath.Join(tmpDir, "composer-setup.php")
+	defer os.Remove(setupPath)
+
+	downloadCmd := exec.Command(phpBin, "-r",
+		fmt.Sprintf(`copy('https://getcomposer.org/installer', '%s');`, setupPath))
+	if out, err := downloadCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to download Composer installer: %w (%s)", err, string(out))
+	}
+
+	// Run the installer to /usr/local/bin
+	installCmd := exec.Command("sudo", phpBin, setupPath,
+		"--install-dir=/usr/local/bin", "--filename=composer")
+	installCmd.Stdin = os.Stdin
+	installCmd.Stdout = os.Stdout
+	installCmd.Stderr = os.Stderr
+	if err := installCmd.Run(); err != nil {
+		return fmt.Errorf("failed to install Composer: %w", err)
+	}
+
+	return nil
+}
+
+// findPHPBinary finds a usable PHP binary on the system
+func (b *BaseInstaller) findPHPBinary() string {
+	// Try versioned binaries first (these are always the real ones)
+	for _, ver := range PHPVersions {
+		bin := fmt.Sprintf("php%s", ver)
+		if path, err := exec.LookPath(bin); err == nil {
+			return path
+		}
+	}
+
+	// Fall back to plain "php"
+	if path, err := exec.LookPath("php"); err == nil {
+		return path
+	}
+
+	return ""
 }
 
 // ConfigureShellPath adds ~/.magebox/bin to the user's shell PATH

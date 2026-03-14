@@ -67,6 +67,12 @@ type Installer interface {
 	// InstallDnsmasq installs dnsmasq for DNS resolution
 	InstallDnsmasq() error
 
+	// IsRealComposerInstalled checks if the real Composer binary (not our wrapper) is installed
+	IsRealComposerInstalled() bool
+
+	// InstallComposer installs the Composer PHP dependency manager
+	InstallComposer() error
+
 	// InstallMultitail installs multitail for log viewing
 	InstallMultitail() error
 
