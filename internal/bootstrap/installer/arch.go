@@ -396,6 +396,21 @@ func (a *ArchInstaller) InstallTideways(versions []string) error {
 	return nil
 }
 
+// UninstallPHP removes all PHP packages from the system
+func (a *ArchInstaller) UninstallPHP() error {
+	return a.RunCommand("sudo pacman -Rns --noconfirm $(pacman -Qqs php) 2>/dev/null || true")
+}
+
+// UninstallNginx removes Nginx from the system
+func (a *ArchInstaller) UninstallNginx() error {
+	return a.RunSudo("pacman", "-Rns", "--noconfirm", "nginx")
+}
+
+// UninstallDnsmasq removes dnsmasq from the system
+func (a *ArchInstaller) UninstallDnsmasq() error {
+	return a.RunSudo("pacman", "-Rns", "--noconfirm", "dnsmasq")
+}
+
 // PackageManager returns "pacman" for Arch
 func (a *ArchInstaller) PackageManager() string {
 	return "pacman"

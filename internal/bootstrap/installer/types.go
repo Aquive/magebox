@@ -107,6 +107,15 @@ type Installer interface {
 	// SetupDNS configures DNS resolution for .test domains
 	SetupDNS() error
 
+	// UninstallPHP removes all PHP packages from the system
+	UninstallPHP() error
+
+	// UninstallNginx removes Nginx from the system
+	UninstallNginx() error
+
+	// UninstallDnsmasq removes dnsmasq from the system
+	UninstallDnsmasq() error
+
 	// PackageManager returns the package manager name
 	PackageManager() string
 

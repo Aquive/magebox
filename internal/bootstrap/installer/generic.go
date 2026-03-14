@@ -85,6 +85,21 @@ func (g *GenericInstaller) ValidateOSVersion() (OSVersionInfo, error) {
 	return info, nil
 }
 
+// UninstallPHP removes all PHP packages from the system
+func (g *GenericInstaller) UninstallPHP() error {
+	return fmt.Errorf("uninstall not supported for generic installer")
+}
+
+// UninstallNginx removes Nginx from the system
+func (g *GenericInstaller) UninstallNginx() error {
+	return fmt.Errorf("uninstall not supported for generic installer")
+}
+
+// UninstallDnsmasq removes dnsmasq from the system
+func (g *GenericInstaller) UninstallDnsmasq() error {
+	return fmt.Errorf("uninstall not supported for generic installer")
+}
+
 // PackageManager returns the package manager name
 func (g *GenericInstaller) PackageManager() string {
 	return g.config.PackageManager.Name

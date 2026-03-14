@@ -9,8 +9,7 @@ server {
 }
 
 server {
-    listen {{.HTTPSPort}} ssl;
-    http2 on;
+    listen {{.HTTPSPort}} ssl http2;
     server_name {{.Domain}};
 
     ssl_certificate {{.SSLCertFile}};

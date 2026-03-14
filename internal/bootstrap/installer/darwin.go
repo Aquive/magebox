@@ -304,6 +304,21 @@ func (d *DarwinInstaller) InstallTideways(versions []string) error {
 	return nil
 }
 
+// UninstallPHP removes all PHP packages from the system
+func (d *DarwinInstaller) UninstallPHP() error {
+	return d.RunCommand("brew uninstall --force shivammathur/php/php@8.1 shivammathur/php/php@8.2 shivammathur/php/php@8.3 shivammathur/php/php@8.4 shivammathur/php/php@8.5 2>/dev/null; brew autoremove")
+}
+
+// UninstallNginx removes Nginx from the system
+func (d *DarwinInstaller) UninstallNginx() error {
+	return d.RunCommand("brew uninstall --force nginx; brew autoremove")
+}
+
+// UninstallDnsmasq removes dnsmasq from the system
+func (d *DarwinInstaller) UninstallDnsmasq() error {
+	return d.RunCommand("sudo brew services stop dnsmasq 2>/dev/null; brew uninstall --force dnsmasq; brew autoremove")
+}
+
 // PackageManager returns "brew" for macOS
 func (d *DarwinInstaller) PackageManager() string {
 	return "brew"

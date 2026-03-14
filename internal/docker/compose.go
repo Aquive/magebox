@@ -99,6 +99,9 @@ func buildComposeCmd(composeFile string, args ...string) *exec.Cmd {
 // Default database credentials
 const (
 	DefaultDBRootPassword = "magebox"
+	// StandardDBPort is the standard MySQL/MariaDB port (3306) that is additionally
+	// exposed for the default database service, alongside its version-specific port.
+	StandardDBPort = 3306
 )
 
 // Default RabbitMQ credentials
@@ -188,17 +191,36 @@ func (g *ComposeGenerator) GenerateGlobalServices(configs []*config.Config) erro
 	// Collect all required services from all projects
 	requiredServices := g.collectRequiredServices(configs)
 
+	// Load global config to determine the default database version
+	// The default gets an additional standard port (3306) mapping
+	globalCfg, _ := config.LoadGlobalConfig(g.platform.HomeDir)
+	defaultMySQL := "8.0"
+	defaultMariaDB := ""
+	if globalCfg != nil {
+		if globalCfg.DefaultServices.MySQL != "" {
+			defaultMySQL = globalCfg.DefaultServices.MySQL
+		}
+		if globalCfg.DefaultServices.MariaDB != "" {
+			defaultMariaDB = globalCfg.DefaultServices.MariaDB
+		}
+	}
+
+	// Determine if there's only one DB service total (always gets standard port)
+	totalDBServices := len(requiredServices.mysql) + len(requiredServices.mariadb)
+
 	// Add MySQL services
 	for version, svcCfg := range requiredServices.mysql {
 		serviceName := fmt.Sprintf("mysql%s", strings.ReplaceAll(version, ".", ""))
-		compose.Services[serviceName] = g.getMySQLService(svcCfg)
+		addStdPort := (totalDBServices == 1) || (version == defaultMySQL)
+		compose.Services[serviceName] = g.getMySQLService(svcCfg, addStdPort)
 		compose.Volumes[fmt.Sprintf("mysql%s_data", strings.ReplaceAll(version, ".", ""))] = ComposeVolume{}
 	}
 
 	// Add MariaDB services
 	for version, svcCfg := range requiredServices.mariadb {
 		serviceName := fmt.Sprintf("mariadb%s", strings.ReplaceAll(version, ".", ""))
-		compose.Services[serviceName] = g.getMariaDBService(svcCfg)
+		addStdPort := len(requiredServices.mysql) == 0 && ((totalDBServices == 1) || (version == defaultMariaDB))
+		compose.Services[serviceName] = g.getMariaDBService(svcCfg, addStdPort)
 		compose.Volumes[fmt.Sprintf("mariadb%s_data", strings.ReplaceAll(version, ".", ""))] = ComposeVolume{}
 	}
 
@@ -307,7 +329,7 @@ func (g *ComposeGenerator) collectRequiredServices(configs []*config.Config) req
 }
 
 // getMySQLService returns a MySQL service configuration
-func (g *ComposeGenerator) getMySQLService(svcCfg *config.ServiceConfig) ComposeService {
+func (g *ComposeGenerator) getMySQLService(svcCfg *config.ServiceConfig, addStandardPort bool) ComposeService {
 	version := svcCfg.Version
 	port := g.getMySQLPort(version)
 
@@ -320,10 +342,15 @@ func (g *ComposeGenerator) getMySQLService(svcCfg *config.ServiceConfig) Compose
 		env["MYSQL_INNODB_BUFFER_POOL_SIZE"] = svcCfg.Memory
 	}
 
+	ports := []string{fmt.Sprintf("%d:3306", port)}
+	if addStandardPort && port != StandardDBPort {
+		ports = append(ports, fmt.Sprintf("%d:3306", StandardDBPort))
+	}
+
 	return ComposeService{
 		ContainerName: fmt.Sprintf("magebox-mysql-%s", version),
 		Image:         fmt.Sprintf("mysql:%s", version),
-		Ports:         []string{fmt.Sprintf("%d:3306", port)},
+		Ports:         ports,
 		Environment:   env,
 		Volumes: []string{
 			fmt.Sprintf("mysql%s_data:/var/lib/mysql", strings.ReplaceAll(version, ".", "")),
@@ -340,7 +367,7 @@ func (g *ComposeGenerator) getMySQLService(svcCfg *config.ServiceConfig) Compose
 }
 
 // getMariaDBService returns a MariaDB service configuration
-func (g *ComposeGenerator) getMariaDBService(svcCfg *config.ServiceConfig) ComposeService {
+func (g *ComposeGenerator) getMariaDBService(svcCfg *config.ServiceConfig, addStandardPort bool) ComposeService {
 	version := svcCfg.Version
 	port := g.getMariaDBPort(version)
 
@@ -353,10 +380,15 @@ func (g *ComposeGenerator) getMariaDBService(svcCfg *config.ServiceConfig) Compo
 		env["MARIADB_INNODB_BUFFER_POOL_SIZE"] = svcCfg.Memory
 	}
 
+	ports := []string{fmt.Sprintf("%d:3306", port)}
+	if addStandardPort && port != StandardDBPort {
+		ports = append(ports, fmt.Sprintf("%d:3306", StandardDBPort))
+	}
+
 	return ComposeService{
 		ContainerName: fmt.Sprintf("magebox-mariadb-%s", version),
 		Image:         fmt.Sprintf("mariadb:%s", version),
-		Ports:         []string{fmt.Sprintf("%d:3306", port)},
+		Ports:         ports,
 		Environment:   env,
 		Volumes: []string{
 			fmt.Sprintf("mariadb%s_data:/var/lib/mysql", strings.ReplaceAll(version, ".", "")),
@@ -795,7 +827,7 @@ func (g *ComposeGenerator) GenerateDefaultServices(globalCfg *config.GlobalConfi
 		Volumes: make(map[string]ComposeVolume),
 	}
 
-	// Add default MySQL 8.0
+	// Add default MySQL 8.0 (also exposed on standard port 3306)
 	if globalCfg.DefaultServices.MySQL != "" {
 		version := globalCfg.DefaultServices.MySQL
 		serviceName := fmt.Sprintf("mysql%s", strings.ReplaceAll(version, ".", ""))
@@ -803,7 +835,7 @@ func (g *ComposeGenerator) GenerateDefaultServices(globalCfg *config.GlobalConfi
 			Enabled: true,
 			Version: version,
 		}
-		compose.Services[serviceName] = g.getMySQLService(svcCfg)
+		compose.Services[serviceName] = g.getMySQLService(svcCfg, true)
 		compose.Volumes[fmt.Sprintf("mysql%s_data", strings.ReplaceAll(version, ".", ""))] = ComposeVolume{}
 	} else {
 		// Default to MySQL 8.0
@@ -811,7 +843,7 @@ func (g *ComposeGenerator) GenerateDefaultServices(globalCfg *config.GlobalConfi
 			Enabled: true,
 			Version: "8.0",
 		}
-		compose.Services["mysql80"] = g.getMySQLService(svcCfg)
+		compose.Services["mysql80"] = g.getMySQLService(svcCfg, true)
 		compose.Volumes["mysql80_data"] = ComposeVolume{}
 	}
 

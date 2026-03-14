@@ -229,7 +229,7 @@ func TestComposeService_MySQL(t *testing.T) {
 		Enabled: true,
 		Version: "8.0",
 	}
-	svc := g.getMySQLService(svcCfg)
+	svc := g.getMySQLService(svcCfg, false)
 
 	if svc.Image != "mysql:8.0" {
 		t.Errorf("Image = %v, want mysql:8.0", svc.Image)
@@ -248,6 +248,26 @@ func TestComposeService_MySQL(t *testing.T) {
 	}
 }
 
+func TestComposeService_MySQL_WithStandardPort(t *testing.T) {
+	g, _ := setupTestComposeGenerator(t)
+
+	svcCfg := &config.ServiceConfig{
+		Enabled: true,
+		Version: "8.0",
+	}
+	svc := g.getMySQLService(svcCfg, true)
+
+	if len(svc.Ports) != 2 {
+		t.Fatalf("Ports = %v, want 2 port mappings (version-specific + standard)", svc.Ports)
+	}
+	if !strings.Contains(svc.Ports[0], "33080:3306") {
+		t.Errorf("Ports[0] = %v, want 33080:3306", svc.Ports[0])
+	}
+	if !strings.Contains(svc.Ports[1], "3306:3306") {
+		t.Errorf("Ports[1] = %v, want 3306:3306", svc.Ports[1])
+	}
+}
+
 func TestComposeService_MySQL_WithMemory(t *testing.T) {
 	g, _ := setupTestComposeGenerator(t)
 
@@ -256,7 +276,7 @@ func TestComposeService_MySQL_WithMemory(t *testing.T) {
 		Version: "8.0",
 		Memory:  "1g",
 	}
-	svc := g.getMySQLService(svcCfg)
+	svc := g.getMySQLService(svcCfg, false)
 
 	if svc.Environment["MYSQL_INNODB_BUFFER_POOL_SIZE"] != "1g" {
 		t.Error("MYSQL_INNODB_BUFFER_POOL_SIZE should be 1g when memory is specified")
