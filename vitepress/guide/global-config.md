@@ -14,8 +14,7 @@ dns_mode: dnsmasq
 default_php: "8.2"
 tld: test
 portainer: false
-editor: code
-auto_start: true
+auto_start: false
 ```
 
 ## Setting Values
@@ -28,7 +27,9 @@ Examples:
 ```bash
 magebox config set dns_mode dnsmasq
 magebox config set default_php 8.3
+magebox config set tld local
 magebox config set portainer true
+magebox config set auto_start true
 ```
 
 ## Configuration Options
@@ -42,12 +43,7 @@ DNS resolution method for `.test` domains.
 | `dnsmasq` | Use dnsmasq for wildcard `*.test` resolution (default) |
 | `hosts` | Modify `/etc/hosts` for each domain (fallback) |
 
-::: tip New in v0.16.6
-Dnsmasq is now the default DNS mode. Bootstrap automatically installs and configures dnsmasq.
-:::
-
 ```bash
-# Switch to hosts mode if needed
 magebox config set dns_mode hosts
 ```
 
@@ -70,7 +66,7 @@ magebox config set tld local
 ```
 
 ::: warning
-Changing TLD requires updating DNS configuration and regenerating SSL certificates.
+Changing TLD requires updating DNS configuration and regenerating SSL certificates. MageBox will automatically reconfigure dnsmasq when you change this setting.
 :::
 
 ### portainer
@@ -83,16 +79,6 @@ magebox config set portainer true
 
 Access at `http://localhost:9000` after enabling.
 
-### editor
-
-Preferred text editor for opening configuration files.
-
-```bash
-magebox config set editor vim
-magebox config set editor "code -w"
-magebox config set editor nano
-```
-
 ### auto_start
 
 Automatically start global services when running project commands.
@@ -101,15 +87,55 @@ Automatically start global services when running project commands.
 magebox config set auto_start true
 ```
 
+### Default Services
+
+The `config show` command also displays default service settings. These are configured directly in `~/.magebox/config.yaml`:
+
+```yaml
+default_services:
+  mysql: "8.0"
+  redis: true
+  opensearch: "2.19.4"
+  rabbitmq: false
+  mailpit: true
+```
+
+### Profiling
+
+Profiling tool credentials can be set in `~/.magebox/config.yaml` or via environment variables:
+
+```yaml
+profiling:
+  blackfire:
+    server_id: "your-server-id"
+    server_token: "your-server-token"
+    client_id: "your-client-id"
+    client_token: "your-client-token"
+  tideways:
+    api_key: "your-api-key"
+```
+
+Environment variables take precedence:
+
+| Variable | Description |
+|----------|-------------|
+| `BLACKFIRE_SERVER_ID` | Blackfire server ID |
+| `BLACKFIRE_SERVER_TOKEN` | Blackfire server token |
+| `BLACKFIRE_CLIENT_ID` | Blackfire client ID |
+| `BLACKFIRE_CLIENT_TOKEN` | Blackfire client token |
+| `TIDEWAYS_API_KEY` | Tideways API key |
+
+See [Blackfire](/services/blackfire) and [Tideways](/services/tideways) for setup guides.
+
 ## Initializing Configuration
 
-Reset to defaults:
+Create the config file with defaults:
 
 ```bash
 magebox config init
 ```
 
-This creates a fresh `~/.magebox/config.yaml` with default values.
+This creates `~/.magebox/config.yaml` with default values. Will not overwrite an existing config.
 
 ## Manual Editing
 
@@ -124,8 +150,10 @@ dns_mode: dnsmasq
 default_php: "8.2"
 tld: test
 portainer: false
-editor: code
-auto_start: true
+auto_start: false
+default_services:
+  mysql: "8.0"
+  redis: true
 ```
 
 ## Directory Structure
