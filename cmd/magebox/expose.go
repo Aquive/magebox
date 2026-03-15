@@ -168,9 +168,12 @@ func runExpose(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Backend: %s\n", cli.Highlight(localURL))
 	fmt.Println()
 
-	// Save current state (DB rows + env.php/config.php locked values)
+	// Save current state (Magento only: DB rows + env.php backup)
 	stateFile := getTunnelStateFile(p, cfg.Name)
-	saveExposeState(db, cfg.DatabaseName(), phpBin, cwd, stateFile, domain)
+	isMagento := cfg.IsMagento()
+	if isMagento {
+		saveExposeState(db, cfg.DatabaseName(), phpBin, cwd, stateFile, domain)
+	}
 
 	// Start cloudflared tunnel
 	tunnelCmd := exec.Command(cloudflaredPath, "tunnel", "--url", localURL)
@@ -212,8 +215,10 @@ func runExpose(cmd *cobra.Command, args []string) error {
 				// Add tunnel domain to .magebox.yaml and regenerate nginx vhosts
 				addTunnelDomain(p, cwd, cfg, tunnelHost, domain)
 
-				// Update base URLs everywhere: DB (all scopes) + env.php (--lock-env)
-				setAllBaseURLs(db, cfg.DatabaseName(), phpBin, cwd, tunnelURL+"/")
+				// Update base URLs (Magento only)
+				if isMagento {
+					setAllBaseURLs(db, cfg.DatabaseName(), phpBin, cwd, tunnelURL+"/")
+				}
 
 				fmt.Println()
 				fmt.Printf("Public URL: %s\n", cli.URL(tunnelURL))
@@ -242,7 +247,9 @@ func runExpose(cmd *cobra.Command, args []string) error {
 
 	// Revert everything after cloudflared has stopped
 	if tunnelURL != "" {
-		revertExposeState(db, cfg.DatabaseName(), phpBin, cwd, stateFile)
+		if isMagento {
+			revertExposeState(db, cfg.DatabaseName(), phpBin, cwd, stateFile)
+		}
 		removeTunnelDomain(p, cwd, cfg)
 	}
 
@@ -280,8 +287,10 @@ func runExposeStop(cmd *cobra.Command, args []string) error {
 	stateFile := getTunnelStateFile(p, cfg.Name)
 	phpBin := p.PHPBinary(cfg.PHP)
 
-	db, _ := getDbInfo(cfg)
-	revertExposeState(db, cfg.DatabaseName(), phpBin, cwd, stateFile)
+	if cfg.IsMagento() {
+		db, _ := getDbInfo(cfg)
+		revertExposeState(db, cfg.DatabaseName(), phpBin, cwd, stateFile)
+	}
 	removeTunnelDomain(p, cwd, cfg)
 
 	pid, err := readPidFile(pidFile)
