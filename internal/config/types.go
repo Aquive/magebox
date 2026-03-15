@@ -214,6 +214,22 @@ func (s *ServiceConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 }
 
+// MarshalYAML implements custom marshaling to preserve the original format.
+// - If only Enabled is set (no version/port/memory), marshals as `true`
+// - If only version is set, marshals as the version string `"8.0"`
+// - Otherwise marshals as an object
+func (s ServiceConfig) MarshalYAML() (interface{}, error) {
+	if s.Version == "" && s.Port == 0 && s.Memory == "" {
+		return s.Enabled, nil
+	}
+	if s.Port == 0 && s.Memory == "" {
+		return s.Version, nil
+	}
+	// Return as struct — use an alias to avoid infinite recursion
+	type plain ServiceConfig
+	return plain(s), nil
+}
+
 // GetRoot returns the document root, defaulting to "pub"
 // Use GetRootForType when the project type is known
 func (d *Domain) GetRoot() string {

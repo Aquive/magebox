@@ -409,7 +409,7 @@ func saveExposeState(db *dbInfo, dbName, phpBin, cwd, stateFile, localDomain str
 
 	// 2. Back up env.php so we can restore it exactly on revert
 	envPHP := filepath.Join(cwd, "app", "etc", "env.php")
-	envBackup := filepath.Join(filepath.Dir(stateFile), fmt.Sprintf("tunnel-%s-env.php.bak", filepath.Base(stateFile)))
+	envBackup := stateFile + ".env.php.bak"
 	if content, err := os.ReadFile(envPHP); err == nil {
 		if err := os.WriteFile(envBackup, content, 0644); err == nil {
 			state.EnvPHPPath = envBackup
@@ -469,32 +469,52 @@ func setAllBaseURLs(db *dbInfo, dbName, phpBin, cwd, tunnelBaseURL string) {
 		}
 	}
 
-	// 2. Override ALL paths in env.php via --lock-env (takes priority over config.php and DB)
+	// 2. Override base URLs in env.php directly (takes priority over config.php and DB)
 	fmt.Print("Locking base URLs in env.php... ")
-	failed := false
-	for _, path := range baseURLConfigPaths {
-		var newValue string
-		switch {
-		case strings.Contains(path, "media"):
-			newValue = tunnelBaseURL + "media/"
-		case strings.Contains(path, "static"):
-			newValue = tunnelBaseURL + "static/"
-		default:
-			newValue = tunnelBaseURL
-		}
-		cmd := exec.Command(phpBin, "bin/magento", "config:set", "--lock-env", path, newValue)
+	envPHP := filepath.Join(cwd, "app", "etc", "env.php")
+	phpScript := fmt.Sprintf(`<?php
+$env = include '%s';
+if (!isset($env['system'])) $env['system'] = [];
+if (!isset($env['system']['default'])) $env['system']['default'] = [];
+$env['system']['default']['web'] = [
+    'unsecure' => [
+        'base_url' => '%s',
+        'base_media_url' => '%smedia/',
+        'base_static_url' => '%sstatic/',
+    ],
+    'secure' => [
+        'base_url' => '%s',
+        'base_media_url' => '%smedia/',
+        'base_static_url' => '%sstatic/',
+    ],
+];
+file_put_contents('%s', "<?php\nreturn " . var_export($env, true) . ";\n");
+echo "ok";
+`, envPHP, tunnelBaseURL, tunnelBaseURL, tunnelBaseURL,
+		tunnelBaseURL, tunnelBaseURL, tunnelBaseURL, envPHP)
+
+	tmpScript, err := os.CreateTemp("", "magebox-expose-*.php")
+	if err == nil {
+		_, _ = tmpScript.WriteString(phpScript)
+		tmpScript.Close()
+		defer os.Remove(tmpScript.Name())
+
+		cmd := exec.Command(phpBin, tmpScript.Name())
 		cmd.Dir = cwd
-		if err := cmd.Run(); err != nil {
-			failed = true
+		if out, err := cmd.CombinedOutput(); err != nil || !strings.Contains(string(out), "ok") {
+			fmt.Println(cli.Error("failed"))
+			if len(out) > 0 {
+				cli.PrintWarning("%s", strings.TrimSpace(string(out)))
+			}
+		} else {
+			fmt.Println(cli.Success("done"))
 		}
-	}
-	if failed {
-		fmt.Println(cli.Error("failed"))
 	} else {
-		fmt.Println(cli.Success("done"))
+		fmt.Println(cli.Error("failed: could not create temp file"))
 	}
 
-	// 3. Flush cache
+	// 3. Import config and flush cache
+	importMagentoConfig(phpBin, cwd)
 	flushMagentoCache(phpBin, cwd)
 }
 
@@ -547,7 +567,8 @@ func revertExposeState(db *dbInfo, dbName, phpBin, cwd, stateFile string) {
 		os.Remove(state.EnvPHPPath)
 	}
 
-	// 3. Flush cache
+	// 3. Import config and flush cache
+	importMagentoConfig(phpBin, cwd)
 	flushMagentoCache(phpBin, cwd)
 }
 
@@ -651,7 +672,19 @@ func regenNginxVhosts(p *platform.Platform, cfg *config.Config, cwd string) {
 	}
 }
 
-// flushMagentoCache runs bin/magento cache:flush and flushes Redis
+// / importMagentoConfig runs bin/magento app:config:import after env.php changes
+func importMagentoConfig(phpBin, cwd string) {
+	fmt.Print("Importing config... ")
+	cmd := exec.Command(phpBin, "bin/magento", "app:config:import")
+	cmd.Dir = cwd
+	if err := cmd.Run(); err != nil {
+		fmt.Println(cli.Warning("skipped"))
+	} else {
+		fmt.Println(cli.Success("done"))
+	}
+}
+
+// flushMagentoCache runs bin/magento cache:flush
 func flushMagentoCache(phpBin, cwd string) {
 	fmt.Print("Flushing Magento cache... ")
 
