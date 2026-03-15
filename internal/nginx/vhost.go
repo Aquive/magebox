@@ -484,6 +484,13 @@ func (c *Controller) SetupNginxConfig() error {
 	mageboxVhostsDir := filepath.Join(c.platform.MageBoxDir(), "nginx", "vhosts")
 	includeDirective := fmt.Sprintf("include %s/*.conf;", mageboxVhostsDir)
 
+	// Ensure server_names_hash_bucket_size is large enough for long hostnames
+	// (e.g. Cloudflare tunnel domains like *.trycloudflare.com)
+	if err := c.EnsureHashBucketSize(); err != nil {
+		// Non-fatal: log warning but continue
+		fmt.Printf("  [warn] Could not set server_names_hash_bucket_size: %v\n", err)
+	}
+
 	switch c.platform.Type {
 	case platform.Darwin:
 		// macOS: add explicit include to nginx.conf
@@ -498,6 +505,91 @@ func (c *Controller) SetupNginxConfig() error {
 	}
 
 	return fmt.Errorf("unsupported platform")
+}
+
+// EnsureHashBucketSize ensures server_names_hash_bucket_size is set to 128
+// in nginx.conf. This is needed for long server names like Cloudflare tunnel
+// domains. If already set (to any value), it is left unchanged.
+func (c *Controller) EnsureHashBucketSize() error {
+	nginxConf := c.GetNginxConfPath()
+
+	content, err := os.ReadFile(nginxConf)
+	if err != nil {
+		return err
+	}
+
+	contentStr := string(content)
+	directive := "server_names_hash_bucket_size 128;"
+
+	var newContent string
+
+	// Check for uncommented, active directive — already configured
+	for _, line := range strings.Split(contentStr, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "#") && strings.Contains(trimmed, "server_names_hash_bucket_size") {
+			return nil
+		}
+	}
+
+	// Check for commented-out directive — uncomment and set to 128
+	replaced := false
+	lines := strings.Split(contentStr, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") && strings.Contains(trimmed, "server_names_hash_bucket_size") {
+			// Preserve indentation
+			indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+			lines[i] = indent + directive + " # MageBox: support long server names"
+			replaced = true
+			break
+		}
+	}
+
+	if replaced {
+		newContent = strings.Join(lines, "\n")
+	} else {
+		// Not present at all — insert inside the http block
+		httpIdx := strings.Index(contentStr, "http {")
+		if httpIdx == -1 {
+			httpIdx = strings.Index(contentStr, "http{")
+		}
+		if httpIdx == -1 {
+			return fmt.Errorf("could not find http block in nginx.conf")
+		}
+
+		braceIdx := strings.Index(contentStr[httpIdx:], "{")
+		if braceIdx == -1 {
+			return fmt.Errorf("could not find http block opening brace")
+		}
+		insertAt := httpIdx + braceIdx + 1
+
+		newContent = contentStr[:insertAt] + "\n    " + directive + " # MageBox: support long server names" + contentStr[insertAt:]
+	}
+
+	switch c.platform.Type {
+	case platform.Darwin:
+		return os.WriteFile(nginxConf, []byte(newContent), 0644)
+	case platform.Linux:
+		tmpFile, err := os.CreateTemp("", "magebox-nginx-*")
+		if err != nil {
+			return err
+		}
+		tmpPath := tmpFile.Name()
+		defer os.Remove(tmpPath)
+
+		if _, err := tmpFile.WriteString(newContent); err != nil {
+			tmpFile.Close()
+			return err
+		}
+		tmpFile.Close()
+
+		cmd := exec.Command("sudo", "cp", tmpPath, nginxConf)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+	return nil
 }
 
 // addIncludeToNginxConfDarwin adds an include directive to macOS nginx.conf
