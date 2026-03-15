@@ -127,7 +127,8 @@ export default defineConfig({
             { text: 'Logs & Reports', link: '/guide/logs' },
             { text: 'Admin Commands', link: '/guide/admin' },
             { text: 'Linux Installers', link: '/guide/linux-installers' },
-            { text: 'Integration Testing', link: '/guide/testing' }
+            { text: 'Integration Testing', link: '/guide/testing' },
+            { text: 'Expose / Share', link: '/guide/expose' }
           ]
         },
         {
@@ -243,7 +244,8 @@ export default defineConfig({
             { text: 'Logs & Reports', link: '/guide/logs' },
             { text: 'Admin Commands', link: '/guide/admin' },
             { text: 'Linux Installers', link: '/guide/linux-installers' },
-            { text: 'Integration Testing', link: '/guide/testing' }
+            { text: 'Integration Testing', link: '/guide/testing' },
+            { text: 'Expose / Share', link: '/guide/expose' }
           ]
         },
         {

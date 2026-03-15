@@ -27,6 +27,7 @@ Unlike Docker-based solutions (Warden, DDEV) or Laravel Herd, MageBox runs PHP a
 - **Automatic PHP switching** - Smart wrapper automatically uses the right PHP version per project
 - **No sudo required** - After one-time setup, all commands run as your user (macOS uses port forwarding)
 - **Team collaboration** - Share repository configs, fetch projects with one command, sync databases from backup servers
+- **Public sharing** - Expose local projects via Cloudflare Tunnels with `magebox expose`
 
 ---
 
@@ -707,6 +708,14 @@ magebox config set portainer true
 | `magebox team <name> repos` | Browse team repositories |
 | `magebox fetch <project>` | Fetch project (clone + DB + media) |
 | `magebox sync` | Sync DB/media for current project |
+| `magebox expose [domain]` | Expose project via Cloudflare Tunnel |
+| `magebox expose stop` | Stop tunnel and revert base URLs |
+| `magebox expose status` | Show tunnel status and public URL |
+| `magebox elasticvue enable` | Enable Elasticvue search UI |
+| `magebox elasticvue disable` | Disable Elasticvue search UI |
+| `magebox db top` | Monitor database processes (innotop) |
+| `magebox varnish vcl-import <file>` | Import custom VCL file |
+| `magebox varnish vcl-reset` | Reset VCL to default |
 | `magebox test setup` | Install testing tools (PHPUnit, PHPStan, PHPCS, PHPMD) |
 | `magebox test unit` | Run PHPUnit unit tests |
 | `magebox test integration` | Run Magento integration tests |
