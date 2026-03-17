@@ -32,6 +32,9 @@ jobs:
         run: |
           scp VERSION magebox@46.62.158.225:/home/magebox/VERSION
 
+      - name: Copy CHANGELOG into vitepress source
+        run: cp CHANGELOG.md vitepress/changelog.md
+
       - name: Upload source to server
         run: |
           rsync -avz --delete \

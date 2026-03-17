@@ -17,3 +17,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Auto-generated from root CHANGELOG.md
+changelog.md
