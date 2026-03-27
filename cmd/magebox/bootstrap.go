@@ -964,6 +964,9 @@ func runBootstrap(cmd *cobra.Command, args []string) error {
 	if globalCfg.Portainer {
 		fmt.Printf("  Portainer:    %s\n", cli.URL("http://localhost:9000"))
 	}
+	if globalCfg.PhpMyAdmin {
+		fmt.Printf("  phpMyAdmin:   %s\n", cli.URL(getPhpMyAdminURL()))
+	}
 	fmt.Println()
 	fmt.Println("Next steps:")
 	fmt.Println(cli.Bullet("Reload your shell to activate the PHP wrapper:"))

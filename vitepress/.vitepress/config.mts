@@ -96,6 +96,7 @@ export default defineConfig({
             { text: 'Mailpit', link: '/services/mailpit' },
             { text: 'Varnish', link: '/services/varnish' },
             { text: 'Elasticvue', link: '/services/elasticvue' },
+            { text: 'phpMyAdmin', link: '/services/phpmyadmin' },
             { text: 'Blackfire', link: '/services/blackfire' },
             { text: 'Tideways', link: '/services/tideways' }
           ]
@@ -213,6 +214,7 @@ export default defineConfig({
             { text: 'Mailpit', link: '/services/mailpit' },
             { text: 'Varnish', link: '/services/varnish' },
             { text: 'Elasticvue', link: '/services/elasticvue' },
+            { text: 'phpMyAdmin', link: '/services/phpmyadmin' },
             { text: 'Blackfire', link: '/services/blackfire' },
             { text: 'Tideways', link: '/services/tideways' }
           ]

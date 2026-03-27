@@ -43,6 +43,7 @@ services:
 | Mailpit | latest | 1025, 8025 |
 | Varnish | latest | 6081 |
 | Elasticvue | latest | 8090 |
+| phpMyAdmin | latest | 8036 |
 
 ## Service Management
 

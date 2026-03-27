@@ -165,6 +165,7 @@ type Services struct {
 	RabbitMQ      *ServiceConfig `yaml:"rabbitmq,omitempty"`
 	Mailpit       *ServiceConfig `yaml:"mailpit,omitempty"`
 	Varnish       *ServiceConfig `yaml:"varnish,omitempty"`
+	PhpMyAdmin    *ServiceConfig `yaml:"phpmyadmin,omitempty"`
 }
 
 // ServiceConfig represents a service configuration
@@ -412,6 +413,11 @@ func (s *Services) HasMailpit() bool {
 // HasVarnish returns true if Varnish service is configured
 func (s *Services) HasVarnish() bool {
 	return s.Varnish != nil && s.Varnish.Enabled
+}
+
+// HasPhpMyAdmin returns true if phpMyAdmin service is configured
+func (s *Services) HasPhpMyAdmin() bool {
+	return s.PhpMyAdmin != nil && s.PhpMyAdmin.Enabled
 }
 
 // GetDatabaseService returns the configured database service (MySQL or MariaDB)
