@@ -278,6 +278,15 @@ func (g *ComposeGenerator) GenerateGlobalServices(configs []*config.Config) erro
 		compose.Services["elasticvue"] = g.getElasticvueService()
 	}
 
+	// Add phpMyAdmin if enabled in global config or by any project
+	if (globalCfg != nil && globalCfg.PhpMyAdmin) || requiredServices.phpmyadmin != nil {
+		port := 8036
+		if requiredServices.phpmyadmin != nil && requiredServices.phpmyadmin.Port > 0 {
+			port = requiredServices.phpmyadmin.Port
+		}
+		compose.Services["phpmyadmin"] = g.getPhpMyAdminService(requiredServices.firstDBHost(defaultMySQL, defaultMariaDB), port)
+	}
+
 	// Add Varnish if needed
 	if requiredServices.varnish != nil {
 		// Generate VCL configuration first
@@ -312,7 +321,34 @@ type requiredServices struct {
 	elasticsearch map[string]*config.ServiceConfig
 	rabbitmq      bool
 	varnish       *config.ServiceConfig
+	phpmyadmin    *config.ServiceConfig
 	// Note: Mailpit is always enabled for local dev safety, not tracked here
+}
+
+// firstDBHost returns the container name of the first available database service.
+// It prefers the default version from global config for deterministic results.
+func (rs *requiredServices) firstDBHost(defaultMySQL, defaultMariaDB string) string {
+	// Prefer the default MySQL version if available
+	if defaultMySQL != "" {
+		if _, ok := rs.mysql[defaultMySQL]; ok {
+			return fmt.Sprintf("magebox-mysql-%s", defaultMySQL)
+		}
+	}
+	// Then try any MySQL version
+	for version := range rs.mysql {
+		return fmt.Sprintf("magebox-mysql-%s", version)
+	}
+	// Prefer the default MariaDB version if available
+	if defaultMariaDB != "" {
+		if _, ok := rs.mariadb[defaultMariaDB]; ok {
+			return fmt.Sprintf("magebox-mariadb-%s", defaultMariaDB)
+		}
+	}
+	// Then try any MariaDB version
+	for version := range rs.mariadb {
+		return fmt.Sprintf("magebox-mariadb-%s", version)
+	}
+	return ""
 }
 
 // collectRequiredServices collects all required services from configs
@@ -347,6 +383,9 @@ func (g *ComposeGenerator) collectRequiredServices(configs []*config.Config) req
 			rs.rabbitmq = true
 		}
 		// Note: Mailpit is always enabled, no need to track
+		if cfg.Services.HasPhpMyAdmin() {
+			rs.phpmyadmin = cfg.Services.PhpMyAdmin
+		}
 		if cfg.Services.HasVarnish() {
 			rs.varnish = cfg.Services.Varnish
 		}
@@ -616,6 +655,26 @@ func (g *ComposeGenerator) getElasticvueService() ComposeService {
 		ContainerName: "magebox-elasticvue",
 		Image:         "cars10/elasticvue:latest",
 		Ports:         []string{"8090:8080"},
+		Networks:      []string{"magebox"},
+		Restart:       "unless-stopped",
+	}
+}
+
+// getPhpMyAdminService returns a phpMyAdmin service configuration
+func (g *ComposeGenerator) getPhpMyAdminService(dbHost string, port int) ComposeService {
+	env := map[string]string{
+		"PMA_ARBITRARY": "1",
+		"PMA_USER":      "root",
+		"PMA_PASSWORD":  DefaultDBRootPassword,
+	}
+	if dbHost != "" {
+		env["PMA_HOST"] = dbHost
+	}
+	return ComposeService{
+		ContainerName: "magebox-phpmyadmin",
+		Image:         "phpmyadmin:latest",
+		Ports:         []string{fmt.Sprintf("%d:80", port)},
+		Environment:   env,
 		Networks:      []string{"magebox"},
 		Restart:       "unless-stopped",
 	}
@@ -1017,6 +1076,17 @@ func (g *ComposeGenerator) GenerateDefaultServices(globalCfg *config.GlobalConfi
 	// Add Elasticvue if enabled
 	if globalCfg.Elasticvue {
 		compose.Services["elasticvue"] = g.getElasticvueService()
+	}
+
+	// Add phpMyAdmin if enabled
+	if globalCfg.PhpMyAdmin {
+		dbHost := ""
+		if globalCfg.DefaultServices.MySQL != "" {
+			dbHost = fmt.Sprintf("magebox-mysql-%s", globalCfg.DefaultServices.MySQL)
+		} else if globalCfg.DefaultServices.MariaDB != "" {
+			dbHost = fmt.Sprintf("magebox-mariadb-%s", globalCfg.DefaultServices.MariaDB)
+		}
+		compose.Services["phpmyadmin"] = g.getPhpMyAdminService(dbHost, 8036)
 	}
 
 	// Write compose file

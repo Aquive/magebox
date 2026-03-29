@@ -615,6 +615,196 @@ func TestComposeGenerator_collectRequiredServices(t *testing.T) {
 	}
 }
 
+func TestComposeService_PhpMyAdmin(t *testing.T) {
+	g, _ := setupTestComposeGenerator(t)
+
+	svc := g.getPhpMyAdminService("magebox-mysql-8.0", 8036)
+
+	if svc.Image != "phpmyadmin:latest" {
+		t.Errorf("Image = %v, want phpmyadmin:latest", svc.Image)
+	}
+	if svc.ContainerName != "magebox-phpmyadmin" {
+		t.Errorf("ContainerName = %v, want magebox-phpmyadmin", svc.ContainerName)
+	}
+	if len(svc.Ports) != 1 || svc.Ports[0] != "8036:80" {
+		t.Errorf("Ports = %v, want [8036:80]", svc.Ports)
+	}
+	if svc.Environment["PMA_ARBITRARY"] != "1" {
+		t.Error("PMA_ARBITRARY should be 1")
+	}
+	if svc.Environment["PMA_HOST"] != "magebox-mysql-8.0" {
+		t.Errorf("PMA_HOST = %v, want magebox-mysql-8.0", svc.Environment["PMA_HOST"])
+	}
+	if svc.Environment["PMA_USER"] != "root" {
+		t.Error("PMA_USER should be root")
+	}
+	if svc.Environment["PMA_PASSWORD"] != DefaultDBRootPassword {
+		t.Errorf("PMA_PASSWORD should be %s", DefaultDBRootPassword)
+	}
+	if svc.Restart != "unless-stopped" {
+		t.Error("Restart should be unless-stopped")
+	}
+}
+
+func TestComposeService_PhpMyAdmin_NoDBHost(t *testing.T) {
+	g, _ := setupTestComposeGenerator(t)
+
+	svc := g.getPhpMyAdminService("", 8036)
+
+	if _, ok := svc.Environment["PMA_HOST"]; ok {
+		t.Error("PMA_HOST should not be set when dbHost is empty")
+	}
+	if svc.Environment["PMA_ARBITRARY"] != "1" {
+		t.Error("PMA_ARBITRARY should still be 1")
+	}
+}
+
+func TestComposeService_PhpMyAdmin_CustomPort(t *testing.T) {
+	g, _ := setupTestComposeGenerator(t)
+
+	svc := g.getPhpMyAdminService("magebox-mysql-8.0", 9090)
+
+	if len(svc.Ports) != 1 || svc.Ports[0] != "9090:80" {
+		t.Errorf("Ports = %v, want [9090:80]", svc.Ports)
+	}
+}
+
+func TestRequiredServices_firstDBHost(t *testing.T) {
+	tests := []struct {
+		name           string
+		rs             requiredServices
+		defaultMySQL   string
+		defaultMariaDB string
+		want           string
+	}{
+		{
+			name: "prefers default MySQL version",
+			rs: requiredServices{
+				mysql:   map[string]*config.ServiceConfig{"5.7": {}, "8.0": {}},
+				mariadb: map[string]*config.ServiceConfig{},
+			},
+			defaultMySQL: "8.0",
+			want:         "magebox-mysql-8.0",
+		},
+		{
+			name: "falls back to any MySQL when default not present",
+			rs: requiredServices{
+				mysql:   map[string]*config.ServiceConfig{"5.7": {}},
+				mariadb: map[string]*config.ServiceConfig{},
+			},
+			defaultMySQL: "8.0",
+			want:         "magebox-mysql-5.7",
+		},
+		{
+			name: "prefers default MariaDB version",
+			rs: requiredServices{
+				mysql:   map[string]*config.ServiceConfig{},
+				mariadb: map[string]*config.ServiceConfig{"10.4": {}, "10.6": {}},
+			},
+			defaultMariaDB: "10.6",
+			want:           "magebox-mariadb-10.6",
+		},
+		{
+			name: "MySQL takes priority over MariaDB",
+			rs: requiredServices{
+				mysql:   map[string]*config.ServiceConfig{"8.0": {}},
+				mariadb: map[string]*config.ServiceConfig{"10.6": {}},
+			},
+			defaultMySQL:   "8.0",
+			defaultMariaDB: "10.6",
+			want:           "magebox-mysql-8.0",
+		},
+		{
+			name: "returns empty when no databases",
+			rs: requiredServices{
+				mysql:   map[string]*config.ServiceConfig{},
+				mariadb: map[string]*config.ServiceConfig{},
+			},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.rs.firstDBHost(tt.defaultMySQL, tt.defaultMariaDB)
+			if got != tt.want {
+				t.Errorf("firstDBHost() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestComposeGenerator_GenerateWithPhpMyAdmin(t *testing.T) {
+	g, tmpDir := setupTestComposeGenerator(t)
+
+	// Create global config with phpMyAdmin enabled
+	configDir := filepath.Join(tmpDir, ".magebox")
+	os.MkdirAll(configDir, 0755)
+	os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("phpmyadmin: true\n"), 0644)
+
+	configs := []*config.Config{
+		{
+			Name: "project1",
+			Services: config.Services{
+				MySQL: &config.ServiceConfig{Enabled: true, Version: "8.0"},
+				Redis: &config.ServiceConfig{Enabled: true},
+			},
+		},
+	}
+
+	err := g.GenerateGlobalServices(configs)
+	if err != nil {
+		t.Fatalf("GenerateGlobalServices failed: %v", err)
+	}
+
+	content, err := os.ReadFile(g.ComposeFilePath())
+	if err != nil {
+		t.Fatalf("Failed to read compose file: %v", err)
+	}
+
+	var compose ComposeConfig
+	if err := yaml.Unmarshal(content, &compose); err != nil {
+		t.Fatalf("Failed to parse compose file: %v", err)
+	}
+
+	if _, ok := compose.Services["phpmyadmin"]; !ok {
+		t.Error("Compose should contain phpmyadmin service when enabled in global config")
+	}
+}
+
+func TestComposeGenerator_GenerateWithPhpMyAdminFromProject(t *testing.T) {
+	g, _ := setupTestComposeGenerator(t)
+
+	configs := []*config.Config{
+		{
+			Name: "project1",
+			Services: config.Services{
+				MySQL:      &config.ServiceConfig{Enabled: true, Version: "8.0"},
+				PhpMyAdmin: &config.ServiceConfig{Enabled: true},
+			},
+		},
+	}
+
+	err := g.GenerateGlobalServices(configs)
+	if err != nil {
+		t.Fatalf("GenerateGlobalServices failed: %v", err)
+	}
+
+	content, err := os.ReadFile(g.ComposeFilePath())
+	if err != nil {
+		t.Fatalf("Failed to read compose file: %v", err)
+	}
+
+	var compose ComposeConfig
+	if err := yaml.Unmarshal(content, &compose); err != nil {
+		t.Fatalf("Failed to parse compose file: %v", err)
+	}
+
+	if _, ok := compose.Services["phpmyadmin"]; !ok {
+		t.Error("Compose should contain phpmyadmin service when enabled in project config")
+	}
+}
+
 func TestComposeConfig_Networks(t *testing.T) {
 	g, _ := setupTestComposeGenerator(t)
 

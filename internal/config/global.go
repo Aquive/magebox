@@ -27,6 +27,9 @@ type GlobalConfig struct {
 	// Elasticvue enables/disables Elasticvue web UI for OpenSearch/Elasticsearch
 	Elasticvue bool `yaml:"elasticvue,omitempty"`
 
+	// PhpMyAdmin enables/disables phpMyAdmin web UI for MySQL/MariaDB
+	PhpMyAdmin bool `yaml:"phpmyadmin,omitempty"`
+
 	// TLD is the top-level domain for local development (default: "test")
 	TLD string `yaml:"tld,omitempty"`
 

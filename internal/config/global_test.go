@@ -30,6 +30,9 @@ func TestDefaultGlobalConfig(t *testing.T) {
 	if config.Portainer {
 		t.Error("Portainer should be false by default")
 	}
+	if config.PhpMyAdmin {
+		t.Error("PhpMyAdmin should be false by default")
+	}
 	if !config.DefaultServices.Redis {
 		t.Error("Redis should be true by default")
 	}
