@@ -16,4 +16,14 @@ Prepare a release for MageBox. Follow these steps:
 
 6. **Create the release commit**: Stage all changed files and create a commit with message `Release vX.Y.Z`. Do NOT push - let the user review and push manually.
 
-7. **Summarize**: Show what was done and remind the user that pushing to main will trigger the auto-tag workflow, which creates the git tag and triggers the release build.
+7. **Push and trigger release**: After the user confirms, push to main with `git push`. Then wait for the auto-tag workflow to create the tag (poll with `gh run list --workflow=auto-tag.yml --limit 1` until it completes). Once the tag exists, delete it locally and remotely, then re-create and push it from your local machine. This is necessary because tags created by GitHub Actions' `GITHUB_TOKEN` do not trigger other workflows (like the release build). Steps:
+   ```bash
+   git fetch --tags
+   git tag -d vX.Y.Z
+   git push origin :refs/tags/vX.Y.Z
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
+   This ensures the release workflow is triggered by a user-pushed tag.
+
+8. **Summarize**: Show what was done and confirm that the release workflow has been triggered.

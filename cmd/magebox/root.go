@@ -8,6 +8,7 @@ import (
 
 	"qoliber/magebox/internal/cli"
 	"qoliber/magebox/internal/config"
+	"qoliber/magebox/internal/updater"
 	"qoliber/magebox/internal/verbose"
 )
 
@@ -15,6 +16,9 @@ var version = "dev"
 
 // verbosity is the count of -v flags
 var verbosity int
+
+// versionChecker runs an async update check in the background
+var versionChecker *updater.VersionChecker
 
 func main() {
 	// If the first non-flag argument is not a known command,
@@ -63,6 +67,22 @@ with Docker for services like MySQL, Redis, OpenSearch, and Varnish.`,
 			verbose.Debug("MageBox version: %s", version)
 			verbose.Debug("Verbosity level: %d", verbosity)
 			verbose.Env()
+		}
+
+		// Start async version check (skip for self-update and dev builds)
+		if cmd.Name() != "self-update" && version != "dev" {
+			if homeDir, err := os.UserHomeDir(); err == nil {
+				versionChecker = updater.NewVersionChecker(version, homeDir)
+				versionChecker.Start()
+			}
+		}
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		if versionChecker != nil {
+			if msg := versionChecker.Result(); msg != "" {
+				fmt.Println()
+				cli.PrintInfo("%s", msg)
+			}
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
