@@ -5,6 +5,13 @@ All notable changes to MageBox will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-04-02
+
+### Added
+
+- **Sandbox Command** - New `magebox sandbox` command to run AI coding agents (Claude, Codex) inside a bubblewrap (bwrap) sandbox with restricted filesystem access. Supports configurable tool profiles, extra bind mounts, and a `--dry-run` mode. Linux only. ([#54](https://github.com/qoliber/magebox/pull/54))
+- **IPv6 Support (macOS)** - Added IPv6 port forwarding rules and nginx listen directives on macOS, fixing "connection refused" errors when clients resolve `.test` domains to `::1` first. ([#52](https://github.com/qoliber/magebox/pull/52))
+
 ## [1.10.1] - 2026-03-29
 
 ### Fixed

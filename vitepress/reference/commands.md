@@ -1938,6 +1938,52 @@ magebox test status
 See the [Testing & Code Quality](/guide/testing-tools) guide for detailed configuration options.
 :::
 
+## Sandbox Commands
+
+### `magebox sandbox [tool] [-- tool-args...]`
+
+Run an AI coding agent inside a bubblewrap (bwrap) sandbox with restricted filesystem access.
+
+```bash
+magebox sandbox                        # Launch claude (default)
+magebox sandbox claude                 # Explicit tool selection
+magebox sandbox codex                  # Launch codex in sandbox
+magebox sandbox claude --resume        # Pass extra args to the tool
+magebox sandbox --dry-run              # Print the bwrap command without running it
+```
+
+**Aliases:** `sb`
+
+The sandbox restricts filesystem access to:
+- **Read-only**: system binaries, libraries, and SSL certificates
+- **Read-write**: current project directory and tool config directories
+
+::: warning Linux Only
+Requires [bubblewrap](https://github.com/containers/bubblewrap) to be installed. This command is not available on macOS.
+:::
+
+**Flags:**
+- `--dry-run` - Print the bwrap command without executing it
+
+**Configuration** (in `.magebox.yaml` or global config):
+
+```yaml
+sandbox:
+  default_tool: claude
+  extra_ro_binds:
+    - /opt/shared/config
+  extra_binds:
+    - /path/to/extra/data
+  tool_profiles:
+    claude:
+      command: claude
+      args: []
+      config_dirs:
+        - ~/.claude
+```
+
+---
+
 ## Utility Commands
 
 ### `magebox check`
