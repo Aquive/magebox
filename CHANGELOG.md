@@ -5,6 +5,16 @@ All notable changes to MageBox will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-04-02
+
+### Added
+
+- **Update Available Notification** - MageBox now checks for new versions in the background and displays a notification after command output when an update is available. Results are cached for 24 hours in `~/.magebox/version-check.json`. Skipped for `self-update` and dev builds.
+
+### Fixed
+
+- **GitHub Release Notes** - Release workflow now includes the changelog entry in GitHub release notes above the installation instructions.
+
 ## [1.11.0] - 2026-04-02
 
 ### Added
