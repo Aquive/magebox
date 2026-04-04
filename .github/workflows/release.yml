@@ -198,7 +198,7 @@ jobs:
           SHA_LINUX_AMD64=${{ steps.checksums.outputs.LINUX_AMD64 }}
 
           # Class name for versioned formula: MageboxAT1120 for version 1.12.0
-          CLASS_SUFFIX=$(echo "${VERSION}" | tr '.' '')
+          CLASS_SUFFIX=$(echo "${VERSION}" | tr -d '.')
           VERSIONED_CLASS="MageboxAT${CLASS_SUFFIX}"
 
           # Helper to generate a formula body (takes class name as $1)
