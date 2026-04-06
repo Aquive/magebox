@@ -4,12 +4,14 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
 	"qoliber/magebox/internal/cli"
@@ -21,8 +23,10 @@ var watchCmd = &cobra.Command{
 	Long: `Runs mage-os/magento-cache-clean in the foreground to watch the current
 project and clear only the affected Magento cache types on file changes.
 
-When a Hyvä theme with a Tailwind setup is detected, a second pane is opened
-running "npm run watch" for the theme's Tailwind build (requires multitail).
+When a theme with a Tailwind build setup is detected (any theme under
+app/design/frontend/ containing a package.json with a "watch" script),
+a second pane is opened running "npm run watch" for that theme (requires tmux).
+If multiple themes are found, you will be prompted to choose one.
 
 Requires cache-clean.js to be installed globally via:
   composer global require mage-os/magento-cache-clean
@@ -81,11 +85,20 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		cli.PrintWarning("Could not generate cache-clean config: %v", err)
 	}
 
-	// Detect Hyvä Tailwind directory
-	hyvaTailwindDir := findHyvaTailwindDir(cwd)
+	// Detect theme directories with an npm watch script
+	themeDirs := findThemeWatchDirs(cwd)
 
-	if hyvaTailwindDir != "" {
-		return runWatchWithHyva(bin, cwd, hyvaTailwindDir)
+	if len(themeDirs) == 1 {
+		return runWatchWithTheme(bin, cwd, themeDirs[0])
+	}
+	if len(themeDirs) > 1 {
+		selected, err := selectThemeWatchDir(cwd, themeDirs)
+		if err != nil {
+			return err
+		}
+		if selected != "" {
+			return runWatchWithTheme(bin, cwd, selected)
+		}
 	}
 
 	return runWatchCacheCleanOnly(bin, cwd)
@@ -111,25 +124,25 @@ func runWatchCacheCleanOnly(bin, cwd string) error {
 	return nil
 }
 
-// runWatchWithHyva runs cache-clean.js and npm run watch side by side in a tmux session.
-func runWatchWithHyva(bin, cwd, hyvaTailwindDir string) error {
+// runWatchWithTheme runs cache-clean.js and npm run watch side by side in a tmux session.
+func runWatchWithTheme(bin, cwd, themeDir string) error {
 	if _, err := exec.LookPath("tmux"); err != nil {
 		cli.PrintError("tmux is not installed")
-		cli.PrintInfo("tmux is required to run cache-clean and Hyvä Tailwind watcher side by side")
+		cli.PrintInfo("tmux is required to run cache-clean and the theme watcher side by side")
 		fmt.Println("  brew install tmux  # macOS")
 		fmt.Println("  sudo dnf install tmux  # Fedora")
 		fmt.Println("  sudo apt install tmux  # Ubuntu/Debian")
 		return nil
 	}
 
-	relDir, err := filepath.Rel(cwd, hyvaTailwindDir)
+	relDir, err := filepath.Rel(cwd, themeDir)
 	if err != nil {
-		relDir = hyvaTailwindDir
+		relDir = themeDir
 	}
 
 	cli.PrintInfo("Watching %s", cli.Path(cwd))
 	cli.PrintInfo("Cache clean: %s", cli.Path(bin))
-	cli.PrintInfo("Hyvä Tailwind: %s", cli.Path(relDir))
+	cli.PrintInfo("Theme watcher: %s", cli.Path(relDir))
 	fmt.Println()
 
 	sessionName := "magebox-watch"
@@ -138,7 +151,7 @@ func runWatchWithHyva(bin, cwd, hyvaTailwindDir string) error {
 	_ = exec.Command("tmux", "kill-session", "-t", sessionName).Run()
 
 	cacheCleanCmd := fmt.Sprintf("%s --watch --directory %s", bin, cwd)
-	npmWatchCmd := fmt.Sprintf("npm --prefix %s run watch", hyvaTailwindDir)
+	npmWatchCmd := fmt.Sprintf("npm --prefix %s run watch", themeDir)
 
 	// Create a new detached tmux session with npm watch in the left pane
 	if err := exec.Command("tmux", "new-session", "-d", "-s", sessionName, npmWatchCmd).Run(); err != nil {
@@ -166,18 +179,64 @@ func runWatchWithHyva(bin, cwd, hyvaTailwindDir string) error {
 	return nil
 }
 
-// findHyvaTailwindDir looks for a Hyvä theme Tailwind directory under
-// app/design/frontend/*/*/web/tailwind/ that contains a package.json.
-func findHyvaTailwindDir(cwd string) string {
+// selectThemeWatchDir prompts the user to select a theme directory when multiple are found.
+func selectThemeWatchDir(cwd string, dirs []string) (string, error) {
+	options := make([]huh.Option[string], 0, len(dirs)+1)
+	for _, dir := range dirs {
+		relDir, err := filepath.Rel(cwd, dir)
+		if err != nil {
+			relDir = dir
+		}
+		options = append(options, huh.NewOption(relDir, dir))
+	}
+	options = append(options, huh.NewOption("None — only run cache-clean", ""))
+
+	var selected string
+	err := huh.NewSelect[string]().
+		Title("Multiple themes with watch scripts found").
+		Options(options...).
+		Value(&selected).
+		Run()
+	if err != nil {
+		return "", err
+	}
+	return selected, nil
+}
+
+// packageJSON represents the parts of package.json we care about.
+type packageJSON struct {
+	Scripts map[string]string `json:"scripts"`
+}
+
+// hasWatchScript checks if a package.json file contains a "watch" script.
+func hasWatchScript(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	var pkg packageJSON
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		return false
+	}
+	_, ok := pkg.Scripts["watch"]
+	return ok
+}
+
+// findThemeWatchDirs finds directories under app/design/frontend/ that contain
+// a package.json with a "watch" script. It walks the full theme tree to find
+// package.json files regardless of their exact location within the theme
+// (e.g. web/tailwind/, web/css/, or directly in the theme root).
+func findThemeWatchDirs(cwd string) []string {
 	designDir := filepath.Join(cwd, "app", "design", "frontend")
 	if _, err := os.Stat(designDir); os.IsNotExist(err) {
-		return ""
+		return nil
 	}
 
-	// Walk: app/design/frontend/<Vendor>/<Theme>/web/tailwind/package.json
+	var dirs []string
+
 	vendors, err := os.ReadDir(designDir)
 	if err != nil {
-		return ""
+		return nil
 	}
 	for _, vendor := range vendors {
 		if !vendor.IsDir() {
@@ -191,14 +250,24 @@ func findHyvaTailwindDir(cwd string) string {
 			if !theme.IsDir() {
 				continue
 			}
-			tailwindDir := filepath.Join(designDir, vendor.Name(), theme.Name(), "web", "tailwind")
-			packageJSON := filepath.Join(tailwindDir, "package.json")
-			if _, err := os.Stat(packageJSON); err == nil {
-				return tailwindDir
-			}
+			themeDir := filepath.Join(designDir, vendor.Name(), theme.Name())
+			// Walk the theme directory to find any package.json with a watch script
+			_ = filepath.WalkDir(themeDir, func(path string, d os.DirEntry, err error) error {
+				if err != nil {
+					return nil
+				}
+				// Skip node_modules and vendor directories
+				if d.IsDir() && (d.Name() == "node_modules" || d.Name() == "vendor") {
+					return filepath.SkipDir
+				}
+				if d.Name() == "package.json" && hasWatchScript(path) {
+					dirs = append(dirs, filepath.Dir(path))
+				}
+				return nil
+			})
 		}
 	}
-	return ""
+	return dirs
 }
 
 // generateCacheCleanConfig runs the generate-cache-clean-config.php script
