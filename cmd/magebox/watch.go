@@ -151,16 +151,13 @@ func runWatchWithTheme(bin, cwd, themeDir string) error {
 	_ = exec.Command("tmux", "kill-session", "-t", sessionName).Run()
 
 	cacheCleanCmd := fmt.Sprintf("%s --watch --directory %s", bin, cwd)
-	npmWatchCmd := fmt.Sprintf("npm --prefix %s run watch", themeDir)
+	// Wrap npm watch so errors pause with a visible message instead of closing the pane.
+	npmWatchCmd := fmt.Sprintf("npm --prefix %s run watch || { echo ''; echo 'npm run watch failed — press Enter to close'; read; }", themeDir)
 
-	// Create a new detached tmux session running a shell so we can set options before spawning panes.
-	if err := exec.Command("tmux", "new-session", "-d", "-s", sessionName).Run(); err != nil {
+	// Create a new detached tmux session with npm watch in the left pane
+	if err := exec.Command("tmux", "new-session", "-d", "-s", sessionName, "sh", "-c", npmWatchCmd).Run(); err != nil {
 		return fmt.Errorf("failed to create tmux session: %w", err)
 	}
-	// Set remain-on-exit so panes stay open on failure, making errors visible.
-	_ = exec.Command("tmux", "set-option", "-t", sessionName, "remain-on-exit", "on").Run()
-	// Replace the initial shell with the npm watch command.
-	_ = exec.Command("tmux", "send-keys", "-t", sessionName, npmWatchCmd, "Enter").Run()
 
 	// Split horizontally and run cache-clean in the right pane
 	if err := exec.Command("tmux", "split-window", "-h", "-t", sessionName, cacheCleanCmd).Run(); err != nil {
