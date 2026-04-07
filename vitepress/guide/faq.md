@@ -226,6 +226,33 @@ This was fixed in v1.0.2! Run `magebox bootstrap` to upgrade your LaunchDaemon w
 
 Some firewalls reset pf rules. MageBox's LaunchDaemon automatically restores rules every 30 seconds. If issues persist, whitelist `/etc/pf.anchors/com.magebox`.
 
+### Composer patches hang during `composer install`
+
+Projects using [`cweagans/composer-patches`](https://github.com/cweagans/composer-patches) may hang during `composer install` with the prompt "File to patch:" appearing in the output.
+
+**Why this happens:** MageBox runs natively on macOS, which uses BSD `patch`. Docker-based tools like DDEV and Warden run inside Linux containers, which use GNU `patch`. The two behave differently:
+
+- **GNU `patch` (Linux)** — when a file path in the patch doesn't match, it tries to find the file by stripping additional directory components. This means patches with incorrect paths often still work.
+- **BSD `patch` (macOS)** — when a file path doesn't match, it prompts interactively asking "File to patch:", causing `composer install` to hang indefinitely.
+
+The `cweagans/composer-patches` plugin runs `patch -p1 -d vendor/<package>/`, which sets the working directory to the package root. Many Magento patches (including official Adobe patches) include full `vendor/` prefixed paths, which don't resolve relative to the package directory.
+
+**Fix:** Update the patch file paths to be relative to the package root:
+
+```diff
+# Correct — relative to the package root
+--- a/Model/Order/Creditmemo/Total/Tax.php
++++ b/Model/Order/Creditmemo/Total/Tax.php
+
+# Wrong — will hang on macOS
+--- a/vendor/magento/module-sales/Model/Order/Creditmemo/Total/Tax.php
++++ b/vendor/magento/module-sales/Model/Order/Creditmemo/Total/Tax.php
+```
+
+Strip the `vendor/<package>/` prefix from the `---` and `+++` lines, as well as from the `diff --git` header line if present.
+
+**Alternative:** Consider switching to [`vaimo/composer-patches`](https://github.com/vaimo/composer-patches), which is generally considered a better option and runs `patch` in batch mode (`-t`) so it fails cleanly instead of hanging.
+
 ---
 
 ## Linux Specific
