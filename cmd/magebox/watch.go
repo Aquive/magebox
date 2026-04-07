@@ -55,7 +55,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	bin, err := findCacheCleanBinary()
+	bin, err := findCacheCleanBinary(cwd)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		if err := installCacheCleanGlobally(); err != nil {
 			return fmt.Errorf("failed to install cache-clean: %w", err)
 		}
-		bin, err = findCacheCleanBinary()
+		bin, err = findCacheCleanBinary(cwd)
 		if err != nil {
 			return err
 		}
@@ -313,9 +313,15 @@ func findGenerateConfigScript(cacheCleanBin string) string {
 	return ""
 }
 
-// findCacheCleanBinary resolves the global cache-clean.js binary, preferring
-// PATH and falling back to the Composer global bin directory.
-func findCacheCleanBinary() (string, error) {
+// findCacheCleanBinary resolves cache-clean.js, checking the project vendor/bin
+// first, then PATH, and finally the Composer global bin directory.
+func findCacheCleanBinary(cwd string) (string, error) {
+	// Project-local: vendor/bin/cache-clean.js
+	local := filepath.Join(cwd, "vendor", "bin", "cache-clean.js")
+	if _, err := os.Stat(local); err == nil {
+		return local, nil
+	}
+
 	if p, err := exec.LookPath("cache-clean.js"); err == nil {
 		return p, nil
 	}
