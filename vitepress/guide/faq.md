@@ -251,6 +251,8 @@ The `cweagans/composer-patches` plugin runs `patch -p1 -d vendor/<package>/`, wh
 
 Strip the `vendor/<package>/` prefix from the `---` and `+++` lines, as well as from the `diff --git` header line if present.
 
+**Alternative:** Consider switching to [`vaimo/composer-patches`](https://github.com/vaimo/composer-patches), which is generally considered a better option and runs `patch` in batch mode (`-t`) so it fails cleanly instead of hanging.
+
 ---
 
 ## Linux Specific
