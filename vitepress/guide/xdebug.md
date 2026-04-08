@@ -201,12 +201,15 @@ php -r "xdebug_info();"
 
 ### Xdebug Not Installed
 
-Install Xdebug via PECL:
+Install Xdebug using MageBox:
 
 ```bash
-# macOS (Homebrew)
-pecl install xdebug
+magebox ext install xdebug
+```
 
+Or manually per platform:
+
+```bash
 # Ubuntu/Debian
 sudo apt install php8.2-xdebug  # Replace with your PHP version
 

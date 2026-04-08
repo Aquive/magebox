@@ -5,6 +5,13 @@ All notable changes to MageBox will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-04-08
+
+### Fixed
+
+- **Xdebug Linux Support** - Fixed Xdebug detection on Linux by adding a Linux case to `findXdebugSo()` using `php-config` to locate the extension directory. Also writes full Xdebug configuration (mode, start_with_request, client_host, client_port, idekey) when enabling, and updated install hint to use `magebox ext install xdebug`. ([#75](https://github.com/qoliber/magebox/pull/75))
+- **Watch Command Cache Clean** - The `magebox watch` command now checks for `cache-clean.js` in the project's `vendor/bin` directory before falling back to a global install. ([#73](https://github.com/qoliber/magebox/pull/73))
+
 ## [1.13.1] - 2026-04-07
 
 ### Changed
