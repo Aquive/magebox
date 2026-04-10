@@ -7,13 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-04-10
+
 ### Fixed
 
-- **Tideways PHP Extension API Key** - `magebox tideways config` now writes the `tideways.api_key` directive into the PHP extension ini file for every installed PHP version, which the Tideways PHP extension requires to transmit traces. Previously MageBox only wrote a daemon config file, and traces never reached Tideways.
+- **Tideways PHP Extension API Key** - `magebox tideways config` now writes the `tideways.api_key` directive into the PHP extension ini file for every installed PHP version, which the Tideways PHP extension requires to transmit traces. Previously MageBox only wrote a daemon config file, and traces never reached Tideways. ([#77](https://github.com/qoliber/magebox/pull/77))
+- **Composer Version Fallback** - `magebox new` no longer errors when the daily-updated version registry contains Magento/MageOS versions not present in the hardcoded composer plugin constraint map. Unknown versions now fall back to sensible defaults instead of failing project creation. ([#80](https://github.com/qoliber/magebox/pull/80))
+- **Self-Update Binary Sync** - `magebox self-update` now syncs the updated binary to all known locations (`~/.magebox/bin/magebox`, `~/.magebox/bin/mbox`, `/usr/local/bin/magebox`, `/usr/local/bin/mbox`) to prevent version mismatches between `magebox` and `mbox`. ([#80](https://github.com/qoliber/magebox/pull/80))
+- **`magebox new ./` Path Handling** - `magebox new ./` now correctly resolves the project name to the current directory name instead of literally `.`. Paths are normalized via `filepath.Clean`. ([#80](https://github.com/qoliber/magebox/pull/80))
 
 ### Added
 
-- **Tideways CLI Access Token** - `magebox tideways config` now also prompts for (and stores) a separate **Access Token** used by the `tideways` commandline tool (`tideways run`, `tideways event create`, `tideways tracepoint create`). When provided, MageBox runs `tideways import <token>` automatically. A new `--access-token` flag and `TIDEWAYS_CLI_TOKEN` environment variable were added. The API key and access token are two different credentials — both are now managed.
+- **Tideways CLI Access Token** - `magebox tideways config` now also prompts for (and stores) a separate **Access Token** used by the `tideways` commandline tool (`tideways run`, `tideways event create`, `tideways tracepoint create`). When provided, MageBox runs `tideways import <token>` automatically. A new `--access-token` flag and `TIDEWAYS_CLI_TOKEN` environment variable were added. The API key and access token are two different credentials — both are now managed. ([#77](https://github.com/qoliber/magebox/pull/77))
+- **Tideways Environment Label** - `magebox tideways config` now prompts for an environment label (defaulting to `local_<username>`) and writes a systemd drop-in for `tideways-daemon` on Linux so traces from developer machines are tagged with the local environment instead of the server-side default `production`. A `--environment` flag and `TIDEWAYS_ENVIRONMENT` env var are also supported. macOS prints a clear manual-config hint. ([#77](https://github.com/qoliber/magebox/pull/77))
+
+### Changed
+
+- **Troubleshooting Docs** - Updated troubleshooting documentation with entries for version mismatch between `magebox`/`mbox` binaries and unsupported Magento version errors. ([#80](https://github.com/qoliber/magebox/pull/80))
+- **Tideways Docs** - Updated Tideways service and global-config guide pages to document the API key vs. access token vs. environment credentials and the per-project Installation URL as the API key source. ([#77](https://github.com/qoliber/magebox/pull/77))
 
 ## [1.14.0] - 2026-04-08
 
