@@ -5,6 +5,13 @@ All notable changes to MageBox will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.1] - 2026-04-21
+
+### Fixed
+
+- **PHP-FPM Pool Group Lookup** - `getCurrentGroup()` on Linux previously returned the username verbatim, assuming the primary group name matched the username (USERGROUPS_ENAB convention). On systems where the primary group is renamed or shared (e.g. user `john` with primary group `john-doe`), the generated FPM pool contained `group = john` and `php-fpm` refused to start with `cannot get gid for group 'john'`. Because the pool file is regenerated on every `magebox start`, hand-patching didn't stick. The group is now resolved via `os/user` + GID lookup, and `getCurrentUser()` routes through `user.Current()` so both resolutions share one source of truth. ([#92](https://github.com/qoliber/magebox/pull/92))
+- **PHP Install on Ubuntu with PHP 8.5** - PHP 8.5 ships OPcache built into `php8.5-cli`, so the Ondřej PPA no longer publishes a separate `php8.5-opcache` package. The hardcoded install list caused bootstrap to fail with `Unable to locate package php8.5-opcache`. MageBox now filters the extension list through `apt-cache show` before invoking `apt install`, printing a note for any skipped packages. Self-heals future packaging consolidations without requiring version-specific branches. ([#94](https://github.com/qoliber/magebox/pull/94))
+
 ## [1.15.0] - 2026-04-20
 
 ### Added
