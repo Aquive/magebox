@@ -556,7 +556,7 @@ func (e *PHPNotInstalledError) Error() string {
 }
 
 // Init initializes a new .magebox.yaml file in the given directory
-func (m *Manager) Init(projectPath string, projectName string, projectType string) error {
+func (m *Manager) Init(projectPath string, projectName string, projectType string, phpVersion string) error {
 	configPath := filepath.Join(projectPath, config.ConfigFileName)
 
 	// Check if file already exists
@@ -568,7 +568,6 @@ func (m *Manager) Init(projectPath string, projectName string, projectType strin
 	homeDir, _ := os.UserHomeDir()
 	globalCfg, _ := config.LoadGlobalConfig(homeDir)
 	tld := globalCfg.GetTLD()
-	phpVersion := globalCfg.DefaultPHP
 	defaults := globalCfg.DefaultServices
 
 	// Derive domain from project name

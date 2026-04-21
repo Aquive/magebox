@@ -11,6 +11,7 @@ import (
 
 	"qoliber/magebox/internal/cli"
 	"qoliber/magebox/internal/config"
+	"qoliber/magebox/internal/php"
 	"qoliber/magebox/internal/project"
 )
 
@@ -37,16 +38,20 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Load global config once for defaults
+	homeDir, _ := os.UserHomeDir()
+	globalCfg, _ := config.LoadGlobalConfig(homeDir)
+	tld := globalCfg.GetTLD()
+
+	reader := bufio.NewReader(os.Stdin)
+
 	// Determine project name
 	var projectName string
 	if len(args) > 0 {
 		projectName = args[0]
 	} else {
-		// Use directory name
 		projectName = filepath.Base(cwd)
-		// Prompt for confirmation
 		fmt.Printf("Project name [%s]: ", cli.Highlight(projectName))
-		reader := bufio.NewReader(os.Stdin)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 		if input != "" {
@@ -56,6 +61,16 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	// Replace slashes with dots in project name
 	projectName = strings.ReplaceAll(projectName, "/", ".")
+
+	// Prompt for PHP version
+	defaultPHP := globalCfg.DefaultPHP
+	fmt.Printf("PHP version [%s] (%s): ", cli.Highlight(defaultPHP), strings.Join(php.SupportedVersions, ", "))
+	phpInput, _ := reader.ReadString('\n')
+	phpInput = strings.TrimSpace(phpInput)
+	phpVersion := defaultPHP
+	if phpInput != "" {
+		phpVersion = phpInput
+	}
 
 	// Check if .magebox.yaml already exists
 	configPath := filepath.Join(cwd, config.ConfigFileName)
@@ -70,14 +85,9 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	mgr := project.NewManager(p)
-	if err := mgr.Init(cwd, projectName, initProjectType); err != nil {
+	if err := mgr.Init(cwd, projectName, initProjectType, phpVersion); err != nil {
 		return err
 	}
-
-	// Get configured TLD
-	homeDir, _ := os.UserHomeDir()
-	globalCfg, _ := config.LoadGlobalConfig(homeDir)
-	tld := globalCfg.GetTLD()
 
 	cli.PrintSuccess("Created %s for project '%s'", config.ConfigFileName, projectName)
 	fmt.Println()

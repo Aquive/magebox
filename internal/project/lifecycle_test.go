@@ -59,7 +59,7 @@ func TestManager_Init(t *testing.T) {
 		t.Fatalf("failed to create project dir: %v", err)
 	}
 
-	err := m.Init(projectPath, "mystore", "magento")
+	err := m.Init(projectPath, "mystore", "magento", "8.2")
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -119,7 +119,7 @@ default_services:
 		t.Fatalf("failed to create project dir: %v", err)
 	}
 
-	err := m.Init(projectPath, "mystore", "magento")
+	err := m.Init(projectPath, "mystore", "magento", "8.4")
 	if err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
@@ -161,12 +161,12 @@ func TestManager_InitAlreadyExists(t *testing.T) {
 	}
 
 	// Create first time
-	if err := m.Init(projectPath, "mystore", "magento"); err != nil {
+	if err := m.Init(projectPath, "mystore", "magento", "8.2"); err != nil {
 		t.Fatalf("Init failed: %v", err)
 	}
 
 	// Try to create again - should fail
-	err := m.Init(projectPath, "mystore", "magento")
+	err := m.Init(projectPath, "mystore", "magento", "8.2")
 	if err == nil {
 		t.Errorf("Init should fail when %s already exists", config.ConfigFileName)
 	}
