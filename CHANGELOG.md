@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Auto-Restore PF Rules on `magebox start`** - `magebox start` now verifies that macOS PF port forwarding rules are active and restores them automatically if they were lost (reboot, sleep/wake). This is a lightweight check that runs before project startup, so domains work immediately without needing to run `magebox bootstrap` again.
 - **Port Forwarding Health Check** - `magebox check` now includes a Port Forwarding section on macOS that reports whether the LaunchDaemon is installed and PF rules are active, making it easy to diagnose forwarding issues.
 
+### Fixed
+
+- **macOS PHP Detection for Unversioned Homebrew Formula** - When PHP was installed via `brew install php` (the unversioned/current formula), MageBox failed to find it because it only looked in `Cellar/php@8.4/`. The unversioned formula installs to `Cellar/php/8.4.x/` instead. Both the Go binary detection and the PHP wrapper script now check both paths.
+
 ## [1.15.1] - 2026-04-21
 
 ### Fixed
