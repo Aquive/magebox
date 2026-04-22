@@ -36,7 +36,7 @@ func NewManager() *Manager {
 
 // launchDaemonVersion is incremented when the plist content changes
 // This ensures existing users get updates when they run bootstrap
-const launchDaemonVersion = "5"
+const launchDaemonVersion = "6"
 
 // EnsureRulesActive checks if pf port forwarding rules are active and restores
 // them if needed. This is a lightweight operation safe to call on every
@@ -260,18 +260,19 @@ rdr pass on lo0 inet6 proto tcp from any to ::1 port 443 -> ::1 port 8443
 // Using a script file instead of an inline plist command allows proper logging,
 // error handling, and easier debugging when things go wrong.
 func (m *Manager) createHelperScript() error {
+	// The script uses plain echo for log messages — launchd captures stdout/stderr
+	// to /var/log/magebox-portforward.log via StandardOutPath/StandardErrorPath.
 	script := `#!/bin/sh
 # MageBox PF Port Forwarding Restore Script
 # Called by com.magebox.portforward LaunchDaemon on boot, sleep/wake, and periodically.
-# Logs to /var/log/magebox-portforward.log
+# Output is captured by launchd to /var/log/magebox-portforward.log
 
-LOG="/var/log/magebox-portforward.log"
 ANCHOR="com.magebox"
 ANCHOR_FILE="/etc/pf.anchors/com.magebox"
 PF_CONF="/etc/pf.conf"
 
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') [magebox-pf] $1" >> "$LOG"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') [magebox-pf] $1"
 }
 
 # Wait briefly for system to settle (boot / wake)
@@ -294,17 +295,17 @@ log "PF rules not active, restoring..."
 if /sbin/pfctl -s info 2>/dev/null | grep -q "Status: Enabled"; then
     # pf is enabled but our anchor rules are missing — reload just our anchor
     log "pf enabled, loading anchor rules..."
-    if /sbin/pfctl -a "$ANCHOR" -f "$ANCHOR_FILE" 2>>"$LOG"; then
+    if /sbin/pfctl -a "$ANCHOR" -f "$ANCHOR_FILE" 2>&1; then
         log "Anchor rules loaded successfully"
     else
         # Anchor-only load failed, try full reload
         log "Anchor load failed, trying full pf.conf reload..."
-        /sbin/pfctl -f "$PF_CONF" 2>>"$LOG"
+        /sbin/pfctl -f "$PF_CONF" 2>&1
     fi
 else
     # pf is not enabled (typical after reboot) — enable it with full config
     log "pf disabled, enabling with full config..."
-    /sbin/pfctl -ef "$PF_CONF" 2>>"$LOG"
+    /sbin/pfctl -ef "$PF_CONF" 2>&1
 fi
 
 # Verify
