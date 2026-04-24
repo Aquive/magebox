@@ -5,6 +5,20 @@ All notable changes to MageBox will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.1] - 2026-04-24
+
+### Added
+
+- **Interactive PHP Version Prompt on `magebox init`** - `magebox init` now prompts for the PHP version, defaulting to the value detected from the project's `composer.json` (`config.platform.php`, falling back to `require.php`) and finally to the global default when no supported version is declared. Supported versions are listed as hints, and the prompt annotates `(from composer.json)` when the default came from the project. ([#97](https://github.com/qoliber/magebox/pull/97))
+
+### Changed
+
+- **Multitail Scrollback Buffer** - `magebox logs` and `magebox logs php|nginx` now keep 10000 lines of scrollback instead of 500, so meaningful log history is actually reachable when scrolling back. ([#99](https://github.com/qoliber/magebox/pull/99))
+
+### Fixed
+
+- **MySQL/MariaDB Port 3306 Binding** - Port 3306 is now bound strictly to the database version named by `globalCfg.DefaultServices.MySQL` (or MariaDB when no MySQL default is configured). Previously any MySQL/MariaDB container in the compose file would also grab 3306, which conflicted with a default-version container left running from another project. Only one container ever claims the standard port now. ([#100](https://github.com/qoliber/magebox/pull/100))
+
 ## [1.16.0] - 2026-04-22
 
 ### Changed

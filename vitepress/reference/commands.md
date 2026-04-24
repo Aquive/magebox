@@ -35,6 +35,8 @@ magebox init mystore
 
 Creates a `.magebox.yaml` configuration file in the current directory.
 
+Interactively prompts for the PHP version. The default is derived from the project's `composer.json` — preferring `config.platform.php`, then falling back to `require.php` — and from the global default when no supported version is declared.
+
 **Arguments:**
 - `name` - Project name (optional, defaults to directory name)
 
