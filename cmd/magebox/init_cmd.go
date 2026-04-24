@@ -62,9 +62,15 @@ func runInit(cmd *cobra.Command, args []string) error {
 	// Replace slashes with dots in project name
 	projectName = strings.ReplaceAll(projectName, "/", ".")
 
-	// Prompt for PHP version
+	// Prompt for PHP version. Prefer a version declared in composer.json
+	// (config.platform.php, then require.php) over the global default.
 	defaultPHP := globalCfg.DefaultPHP
-	fmt.Printf("PHP version [%s] (%s): ", cli.Highlight(defaultPHP), strings.Join(php.SupportedVersions, ", "))
+	composerSource := ""
+	if v := php.DetectVersionFromComposer(filepath.Join(cwd, "composer.json")); v != "" {
+		defaultPHP = v
+		composerSource = " (from composer.json)"
+	}
+	fmt.Printf("PHP version [%s%s] (%s): ", cli.Highlight(defaultPHP), composerSource, strings.Join(php.SupportedVersions, ", "))
 	phpInput, _ := reader.ReadString('\n')
 	phpInput = strings.TrimSpace(phpInput)
 	phpVersion := defaultPHP
