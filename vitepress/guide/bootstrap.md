@@ -53,10 +53,9 @@ Running `magebox bootstrap` will:
    - Enable HTTPS for all projects
 
 4. **Port Forwarding (macOS)**
-   - Set up pf (packet filter) rules
-   - Forward port 80 → 8080
-   - Forward port 443 → 8443
-   - Install LaunchDaemon for persistence
+   - Install `magebox _portforward` TCP proxy daemon
+   - Forward port 80 → 8080 and 443 → 8443
+   - Install LaunchDaemon for persistence across reboots
 
 5. **Configure Nginx**
    - Create MageBox vhosts directory
@@ -173,33 +172,29 @@ Then run 'magebox init' in your project directory to get started.
 
 ### Why Port Forwarding?
 
-On macOS, MageBox uses **packet filter (pf)** to enable services to run as your regular user:
+On macOS, MageBox uses a **TCP proxy daemon** to enable services to run as your regular user:
 
 - **Problem**: Web servers need ports 80/443, but only root can bind to ports below 1024
-- **Solution**: Nginx runs on 8080/8443, pf transparently forwards from 80/443
+- **Solution**: Nginx runs on 8080/8443, a lightweight proxy transparently forwards from 80/443
 - **Result**: Access sites at clean URLs like `https://mystore.test` without sudo
 
 ### How It Works
 
 ```
-Browser → Port 443 → pf → Port 8443 → Nginx (your user)
+Browser → Port 443 → magebox _portforward → Port 8443 → Nginx (your user)
 ```
+
+MageBox runs a hidden `magebox _portforward` daemon process that listens on ports 80 and 443 and forwards all traffic to Nginx on 8080/8443. This pure Go TCP proxy requires no kernel pf rules and is far more reliable across reboots and sleep/wake cycles.
 
 ### What Gets Installed
 
-**1. PF Rules File** (`/etc/pf.anchors/com.magebox`):
-```
-rdr pass on lo0 inet proto tcp from any to any port 80 -> 127.0.0.1 port 8080
-rdr pass on lo0 inet proto tcp from any to any port 443 -> 127.0.0.1 port 8443
-```
-
-**2. LaunchDaemon** (`/Library/LaunchDaemons/com.magebox.portforward.plist`):
-- Loads pf rules automatically on boot
-- Runs as root (required for pf)
-- Enables forwarding transparently
-- **Sleep/Wake Recovery**: Uses `KeepAlive.NetworkState` to reload rules when network comes up after sleep
-- **Periodic Check**: Verifies rules every 30 seconds as a fallback
+**LaunchDaemon** (`/Library/LaunchDaemons/com.magebox.portforward.plist`):
+- Runs `magebox _portforward` as root (required to bind ports 80/443)
+- `KeepAlive: true` — launchd automatically restarts it if it crashes
+- Survives reboots, sleep/wake, and network changes without manual intervention
 - **Auto-Upgrade**: Running `magebox bootstrap` automatically upgrades old LaunchDaemon versions
+
+If you previously had the pf-based LaunchDaemon installed, bootstrap automatically removes the legacy pf anchor files and upgrades to the TCP proxy daemon.
 
 ### Verification
 
@@ -207,8 +202,8 @@ rdr pass on lo0 inet proto tcp from any to any port 443 -> 127.0.0.1 port 8443
 # Check if LaunchDaemon exists
 ls -la /Library/LaunchDaemons/com.magebox.portforward.plist
 
-# Check if pf rules exist
-cat /etc/pf.anchors/com.magebox
+# Check if the daemon is loaded
+sudo launchctl list | grep magebox
 
 # Verify it works
 curl -I https://mystore.test
@@ -375,21 +370,21 @@ Services running after bootstrap:
 
 ### Port Forwarding Not Working (macOS)
 
-1. Verify LaunchDaemon is loaded and check version:
+1. Verify LaunchDaemon is loaded:
    ```bash
    sudo launchctl list | grep magebox
-   grep "MageBox-Version" /Library/LaunchDaemons/com.magebox.portforward.plist
    ```
 
-2. Check if rules are active (use `-sn` for NAT/redirect rules):
+2. Check if the proxy daemon is running:
    ```bash
-   sudo pfctl -a com.magebox -sn
-   # Should show: rdr pass on lo0 inet proto tcp ... port = 80 -> 127.0.0.1 port 8080
+   pgrep -a magebox
+   # Should show a magebox _portforward process
    ```
 
-3. Reload anchor rules manually:
+3. Reload the LaunchDaemon manually:
    ```bash
-   sudo pfctl -a com.magebox -f /etc/pf.anchors/com.magebox
+   sudo launchctl unload /Library/LaunchDaemons/com.magebox.portforward.plist
+   sudo launchctl load /Library/LaunchDaemons/com.magebox.portforward.plist
    ```
 
 4. Check nginx is listening:
@@ -398,10 +393,10 @@ Services running after bootstrap:
    lsof -nP -iTCP:8443 -sTCP:LISTEN
    ```
 
-5. **Upgrade LaunchDaemon** (if using old version without sleep/wake support):
+5. **Upgrade LaunchDaemon** (if using old pf-based version):
    ```bash
    magebox bootstrap
-   # This automatically detects and upgrades old LaunchDaemon versions
+   # Automatically removes legacy pf rules and installs the TCP proxy daemon
    ```
 
 ### Docker not running

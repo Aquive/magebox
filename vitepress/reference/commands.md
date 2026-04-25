@@ -518,6 +518,7 @@ Execute a custom command.
 ```bash
 magebox run deploy
 magebox run reindex
+magebox run          # Interactive selector when no name given
 ```
 
 Runs commands defined in `.magebox.yaml`:
@@ -527,8 +528,10 @@ commands:
   deploy: "php bin/magento deploy:mode:set production"
 ```
 
+When called without a command name, an interactive TUI menu is shown listing all available custom commands. Use arrow keys to select, Enter to run.
+
 **Options:**
-- `--list` - Show available commands
+- `--list`, `-l` - Print available commands as plain text (no interactive UI)
 
 ---
 
@@ -1031,6 +1034,80 @@ magebox elasticvue status
 ```
 
 Shows whether Elasticvue is enabled, running, and the web UI URL.
+
+## Mailpit Commands
+
+### `magebox mailpit open`
+
+Open the Mailpit email testing UI in the default browser.
+
+```bash
+magebox mailpit open
+```
+
+Reads the actual port from the running container via `docker port`. Falls back to port 8025 if the container is not running.
+
+---
+
+### `magebox mailpit status`
+
+Show Mailpit status and connection details.
+
+```bash
+magebox mailpit status
+```
+
+Displays whether Mailpit is running, the web UI URL, and the SMTP address (`localhost:1025`). Mailpit is always enabled and starts automatically with global services.
+
+::: tip
+See [Mailpit](/services/mailpit) for configuration and usage details.
+:::
+
+## phpMyAdmin Commands
+
+### `magebox phpmyadmin enable`
+
+Enable the phpMyAdmin web UI.
+
+```bash
+magebox phpmyadmin enable
+```
+
+Sets `phpmyadmin: true` in the global config, starts the container, and prints the URL (default port 8036). Uses arbitrary server mode — connect to any database container by name (e.g. `magebox-mysql-8.0`).
+
+---
+
+### `magebox phpmyadmin disable`
+
+Disable phpMyAdmin.
+
+```bash
+magebox phpmyadmin disable
+```
+
+Stops and removes the container, sets `phpmyadmin: false` in global config.
+
+---
+
+### `magebox phpmyadmin status`
+
+Show phpMyAdmin status.
+
+```bash
+magebox phpmyadmin status
+```
+
+---
+
+### `magebox phpmyadmin open`
+
+Open phpMyAdmin in the default browser.
+
+```bash
+magebox phpmyadmin open
+```
+
+Reads the actual port from the running container. Errors if phpMyAdmin is not running.
 
 ## Expose Commands
 
@@ -1882,6 +1959,189 @@ magebox sync --media
 Run from within a project directory. Auto-detects team from git remote.
 :::
 
+## Server Commands
+
+Commands for managing the MageBox team server process on the machine where it is hosted. These are server-side commands, not client commands.
+
+### `magebox server init`
+
+Initialize the team server configuration.
+
+```bash
+magebox server init
+```
+
+Generates the master key, admin token, SSH CA key pair, and initial configuration. Run this once on the machine that will host the team server.
+
+---
+
+### `magebox server start`
+
+Start the team server.
+
+```bash
+magebox server start
+```
+
+---
+
+### `magebox server stop`
+
+Stop the team server.
+
+```bash
+magebox server stop
+```
+
+---
+
+### `magebox server status`
+
+Check team server status.
+
+```bash
+magebox server status
+```
+
+::: tip
+See the [Team Server](/guide/team-server) guide for full setup and administration details.
+:::
+
+## Environment Commands
+
+Manage remote SSH environments. Environments are stored globally and can be used to quickly SSH into remote servers.
+
+### `magebox env`
+
+List all configured remote environments.
+
+```bash
+magebox env
+```
+
+---
+
+### `magebox env add <name>`
+
+Add a new remote environment.
+
+```bash
+magebox env add staging --user deploy --host staging.example.com
+magebox env add production --user deploy --host prod.example.com --port 2222
+magebox env add cloud --user magento --host 10.0.0.1 --key ~/.ssh/cloud_key
+magebox env add tunnel --ssh-command "ssh -J jump@bastion.example.com deploy@internal.example.com"
+```
+
+**Options:**
+- `--user`, `-u` - SSH username (required for standard connections)
+- `--host`, `-H` - SSH host or IP (required for standard connections)
+- `--port`, `-p` - SSH port (default: 22)
+- `--key`, `-k` - Path to SSH private key
+- `--ssh-command` - Full custom SSH command (for jump hosts/tunnels, overrides user/host/port)
+
+---
+
+### `magebox env remove <name>`
+
+Remove a remote environment. Aliases: `rm`, `delete`.
+
+```bash
+magebox env remove staging
+```
+
+---
+
+### `magebox env ssh <name>`
+
+SSH into a configured remote environment.
+
+```bash
+magebox env ssh staging
+magebox env ssh production
+```
+
+---
+
+### `magebox env show <name>`
+
+Show connection details for an environment.
+
+```bash
+magebox env show staging
+```
+
+---
+
+### `magebox env sync`
+
+Sync the list of accessible environments from the team server.
+
+```bash
+magebox env sync
+```
+
+Fetches environments you have access to from the connected team server and updates the local cache. Run this after your access has been updated on the server.
+
+## SSH Commands
+
+### `magebox ssh <environment>`
+
+SSH into a team server environment using your SSH certificate.
+
+```bash
+magebox ssh myproject/staging
+magebox ssh myproject/production
+```
+
+Environments are in the format `project/environment`. Uses the SSH key generated when joining the team server. If a certificate is configured, it is used automatically. Warns if the certificate is expired or missing.
+
+```bash
+# Renew certificate if prompted
+magebox cert renew
+```
+
+## Certificate Commands
+
+Commands for managing SSH certificates issued by the team server CA.
+
+### `magebox cert renew`
+
+Renew your SSH certificate from the team server.
+
+```bash
+magebox cert renew
+magebox cert renew --quiet   # Suppress output (for cron/scripts)
+```
+
+Certificates are valid for 24 hours. The renewed certificate is saved to `~/.magebox/keys/<server>-cert.pub`.
+
+**Options:**
+- `--quiet` - Suppress output
+
+---
+
+### `magebox cert show`
+
+Show information about your current SSH certificate.
+
+```bash
+magebox cert show
+```
+
+Displays the certificate file path, size, modification time, and type. Run `ssh-keygen -L -f <cert-file>` for full certificate details.
+
+---
+
+### `magebox cert expiry`
+
+Check when your SSH certificate expires.
+
+```bash
+magebox cert expiry
+```
+
+Shows whether the certificate is valid, when it expires, and how much time remains.
+
 ## Test Commands
 
 Commands for running tests and code quality checks.
@@ -2044,6 +2304,46 @@ sandbox:
 ```
 
 ---
+
+## Service Commands
+
+Commands for managing the MageBox autostart service, which starts global Docker services and all projects automatically at login.
+
+### `magebox service install`
+
+Install the MageBox autostart service.
+
+```bash
+magebox service install
+```
+
+On **macOS**: installs a LaunchAgent (`~/Library/LaunchAgents/com.qoliber.magebox.plist`) that runs `magebox global start` at login.
+
+On **Linux**: installs a systemd user service (`~/.config/systemd/user/magebox.service`) and enables it with `systemctl --user enable`.
+
+After installation, all global services and running projects start automatically when you log in — no manual `magebox global start` needed.
+
+---
+
+### `magebox service uninstall`
+
+Remove the MageBox autostart service.
+
+```bash
+magebox service uninstall
+```
+
+Unloads and removes the LaunchAgent (macOS) or disables and removes the systemd unit (Linux).
+
+---
+
+### `magebox service status`
+
+Show whether the autostart service is installed and active.
+
+```bash
+magebox service status
+```
 
 ## Utility Commands
 
