@@ -16,6 +16,24 @@ name: mystore
 
 ---
 
+### type
+
+`string` | Default: `"magento"`
+
+Project type. Controls default document root detection and Magento-specific behaviour.
+
+```yaml
+type: magento   # default
+type: laravel   # Laravel project
+```
+
+| Value | Document root default | Notes |
+|-------|----------------------|-------|
+| `magento` | `pub` | Enables Magento-specific commands |
+| `laravel` | `public` | Skips Magento-specific setup steps |
+
+---
+
 ### domains
 
 **Required** | `array`
@@ -54,6 +72,22 @@ php: "8.2"
 ```
 
 **Supported values:** `"8.1"`, `"8.2"`, `"8.3"`, `"8.4"`
+
+---
+
+### isolated
+
+`boolean` | Default: `false`
+
+Run this project's PHP-FPM in a dedicated master process, isolated from other projects using the same PHP version.
+
+```yaml
+isolated: true
+```
+
+Useful when you need per-project PHP system settings (`opcache.preload`, `opcache.jit`, etc.) that can only be set in `php.ini` and would otherwise affect all projects on the same PHP version.
+
+See [`magebox php isolate`](/reference/commands#magebox-php-isolate) for more details.
 
 ---
 
@@ -148,6 +182,26 @@ env:
 
 ---
 
+### php_ini
+
+`object`
+
+Per-project PHP INI overrides. Values are injected into the PHP-FPM pool as `php_admin_value` directives, so they apply only to this project's pool and override any global `php.ini` settings.
+
+```yaml
+php_ini:
+  memory_limit: 1G
+  max_execution_time: 300
+  tideways.api_key: abc123       # Per-project Tideways API key
+  xdebug.mode: debug,develop
+```
+
+::: tip
+Most settings can also be managed through `magebox php ini set <key> <value>`, which writes to this section automatically.
+:::
+
+---
+
 ### commands
 
 `object`
@@ -173,6 +227,63 @@ commands:
 |----------|------|-------------|
 | `description` | string | Help text for the command |
 | `run` | string | Command(s) to execute |
+
+---
+
+### testing
+
+`object`
+
+Testing tool configuration. Used by `magebox test` commands.
+
+```yaml
+testing:
+  phpunit:
+    config: dev/tests/unit/phpunit.xml
+  phpstan:
+    level: 5
+    paths:
+      - app/code/Vendor/Module
+  phpcs:
+    standard: Magento2
+    paths:
+      - app/code/Vendor/Module
+  phpmd:
+    ruleset: cleancode,design
+    paths:
+      - app/code/Vendor/Module
+```
+
+::: tip
+Run `magebox test setup` to configure this section interactively.
+:::
+
+---
+
+### sandbox
+
+`object`
+
+Bubblewrap sandbox configuration for AI coding agents (`magebox sandbox`). Controls which filesystem paths are accessible inside the sandbox.
+
+```yaml
+sandbox:
+  tool_profiles:
+    claude:
+      extra_binds:
+        - /path/to/extra/dir
+    codex:
+      extra_binds: []
+```
+
+#### Sandbox Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `tool_profiles` | object | Per-tool overrides keyed by tool name (`claude`, `codex`) |
+| `tool_profiles.<tool>.extra_binds` | array | Extra read-write bind mounts added to the sandbox |
+
+See [`magebox sandbox`](/reference/commands#magebox-sandbox-tool----tool-args) for details on what is accessible by default.
 
 ---
 
