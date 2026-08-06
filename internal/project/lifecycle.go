@@ -91,6 +91,12 @@ func (m *Manager) Start(projectPath string) (*StartResult, error) {
 		result.Warnings = append(result.Warnings, fmt.Sprintf("SSL: %v", err))
 	}
 
+	// Resolve PHP-FPM process manager settings (project overrides global default)
+	pmSettings, err := m.resolvePM(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("PHP-FPM process manager: %w", err)
+	}
+
 	// Check if project uses isolated PHP-FPM master
 	isolatedController := php.NewIsolatedFPMController(m.platform)
 
@@ -105,7 +111,7 @@ func (m *Manager) Start(projectPath string) (*StartResult, error) {
 			settings["opcache.enable"] = "0"
 		}
 
-		_, err := isolatedController.Enable(cfg.Name, projectPath, cfg.PHP, settings)
+		_, err := isolatedController.Enable(cfg.Name, projectPath, cfg.PHP, settings, &pmSettings)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Errorf("isolated PHP-FPM: %w", err))
 		}
@@ -120,7 +126,7 @@ func (m *Manager) Start(projectPath string) (*StartResult, error) {
 
 		// Generate PHP-FPM pool (Mailpit always enabled for local dev safety)
 		// This prevents accidental emails to real addresses during development
-		poolResult, err := m.poolGenerator.GenerateWithResult(cfg.Name, projectPath, cfg.PHP, cfg.Env, cfg.PHPINI, true)
+		poolResult, err := m.poolGenerator.GenerateWithResult(cfg.Name, projectPath, cfg.PHP, cfg.Env, cfg.PHPINI, true, &pmSettings)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Errorf("PHP-FPM pool: %w", err))
 		} else if poolResult != nil {
@@ -660,6 +666,17 @@ php: "%s"
 	return os.WriteFile(configPath, []byte(content), 0644)
 }
 
+// resolvePM combines the machine-wide default process manager settings with
+// the project's own `pm` block. A missing or unreadable global config is not
+// fatal: the project config alone still resolves against the built-in defaults.
+func (m *Manager) resolvePM(cfg *config.Config) (config.ResolvedPM, error) {
+	var globalPM *config.PMConfig
+	if globalCfg, err := config.LoadGlobalConfig(m.platform.HomeDir); err == nil && globalCfg != nil {
+		globalPM = globalCfg.DefaultPM
+	}
+	return config.ResolvePM(globalPM, cfg.PM)
+}
+
 // RegenerateConfigs regenerates PHP-FPM pool and Nginx vhost configs
 // without restarting services (useful for applying config changes)
 func (m *Manager) RegenerateConfigs(projectPath string) error {
@@ -668,8 +685,13 @@ func (m *Manager) RegenerateConfigs(projectPath string) error {
 		return err
 	}
 
+	pmSettings, err := m.resolvePM(cfg)
+	if err != nil {
+		return fmt.Errorf("PHP-FPM process manager: %w", err)
+	}
+
 	// Regenerate PHP-FPM pool
-	if err := m.poolGenerator.Generate(cfg.Name, projectPath, cfg.PHP, cfg.Env, cfg.PHPINI, true); err != nil {
+	if err := m.poolGenerator.Generate(cfg.Name, projectPath, cfg.PHP, cfg.Env, cfg.PHPINI, true, &pmSettings); err != nil {
 		return fmt.Errorf("failed to regenerate PHP-FPM pool: %w", err)
 	}
 
