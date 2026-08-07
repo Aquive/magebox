@@ -5,6 +5,17 @@ All notable changes to MageBox will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-08-07
+
+### Added
+
+- **Configurable PHP-FPM Process Manager** - Pool configs previously hardcoded `pm = dynamic` with `pm.max_children = 50`, sized as if each pool had the machine to itself; on a host running several projects those defaults collectively oversubscribe it, and hand-edited pool files were overwritten on the next `magebox start`. A `pm` block can now be set in `.magebox.yaml` / `.magebox.local.yaml`, with a machine-wide `default_pm` baseline in `~/.magebox/config.yaml`. Precedence is project > global > built-in, merged key by key so a local override can tune a single value. `ondemand` is the notable addition for multi-project machines: dormant projects start no workers at all. Only the directives valid for the selected mode are written, and values are validated before the pool file is written — a single malformed pool prevents the FPM master from starting, taking down every project on that PHP version. Lowering only `max_children` scales the untouched spare-server defaults down to fit rather than erroring. Defaults are unchanged, so existing installs render byte-identical pool files. ([#133](https://github.com/qoliber/magebox/pull/133))
+
+### Fixed
+
+- **PHP-FPM Service Docs Showed Stale `pm` Values** - The service documentation still listed 5/2/10/500 for `start_servers`/`min_spare_servers`/`max_spare_servers`/`max_requests` rather than the 8/4/12/1000 the code has been generating. ([#133](https://github.com/qoliber/magebox/pull/133))
+- **CI Failed on Fork Pull Requests** - The `comment-artifacts` job requests `pull-requests: write`, but GitHub caps `GITHUB_TOKEN` to read-only for `pull_request` runs originating from a fork, so posting the artifact comment failed with a 403 and marked the whole run as failed even when every build, test and lint job passed. This had broken every fork PR since the job was added. The job is now gated on the PR originating from this repository; PRs from branches in this repository keep their artifact comment. ([#134](https://github.com/qoliber/magebox/pull/134))
+
 ## [1.18.2] - 2026-06-23
 
 ### Fixed
