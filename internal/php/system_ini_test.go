@@ -387,7 +387,7 @@ func TestPoolGeneratorWithSystemSettings(t *testing.T) {
 		"memory_limit":                "768M",
 	}
 
-	result, err := gen.GenerateWithResult("test-project", "/path/to/project", "8.3", nil, phpIni, false)
+	result, err := gen.GenerateWithResult("test-project", "/path/to/project", "8.3", nil, phpIni, false, nil)
 	if err != nil {
 		t.Fatalf("GenerateWithResult failed: %v", err)
 	}
