@@ -7,6 +7,7 @@ import (
 	"testing"
 	"text/template"
 
+	"qoliber/magebox/internal/config"
 	"qoliber/magebox/internal/platform"
 )
 
@@ -70,7 +71,7 @@ func TestPoolGenerator_Generate(t *testing.T) {
 
 	phpIni := map[string]string{}
 
-	err := g.Generate("mystore", "/tmp/mystore", "8.2", env, phpIni, false)
+	err := g.Generate("mystore", "/tmp/mystore", "8.2", env, phpIni, false, nil)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
@@ -109,7 +110,7 @@ func TestPoolGenerator_Generate(t *testing.T) {
 func TestPoolGenerator_GenerateWithoutEnv(t *testing.T) {
 	g, _ := setupTestPoolGenerator(t)
 
-	err := g.Generate("mystore", "/tmp/mystore", "8.3", nil, nil, false)
+	err := g.Generate("mystore", "/tmp/mystore", "8.3", nil, nil, false, nil)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
@@ -125,7 +126,7 @@ func TestPoolGenerator_Remove(t *testing.T) {
 	g, _ := setupTestPoolGenerator(t)
 
 	// Generate pool first
-	if err := g.Generate("mystore", "/tmp/mystore", "8.2", nil, nil, false); err != nil {
+	if err := g.Generate("mystore", "/tmp/mystore", "8.2", nil, nil, false, nil); err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
 
@@ -154,10 +155,10 @@ func TestPoolGenerator_ListPools(t *testing.T) {
 	g, _ := setupTestPoolGenerator(t)
 
 	// Create some pool files
-	if err := g.Generate("project1", "/tmp/project1", "8.2", nil, nil, false); err != nil {
+	if err := g.Generate("project1", "/tmp/project1", "8.2", nil, nil, false, nil); err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
-	if err := g.Generate("project2", "/tmp/project2", "8.3", nil, nil, false); err != nil {
+	if err := g.Generate("project2", "/tmp/project2", "8.3", nil, nil, false, nil); err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
 
@@ -187,11 +188,131 @@ func TestPoolGenerator_GetIncludeDirective(t *testing.T) {
 	}
 }
 
+// generatePoolWithPM renders a pool for the given process manager settings and
+// returns the file contents.
+func generatePoolWithPM(t *testing.T, pm *config.ResolvedPM) string {
+	t.Helper()
+
+	g, _ := setupTestPoolGenerator(t)
+	if err := g.Generate("testproject", "/tmp/testproject", "8.2", nil, nil, false, pm); err != nil {
+		t.Fatalf("Generate failed: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(g.PoolsDirForVersion("8.2"), "testproject.conf"))
+	if err != nil {
+		t.Fatalf("Failed to read pool file: %v", err)
+	}
+	return string(content)
+}
+
+func TestPoolConfig_CustomDynamicPM(t *testing.T) {
+	pm, err := config.ResolvePM(nil, &config.PMConfig{
+		MaxChildren:     ptr(12),
+		StartServers:    ptr(4),
+		MinSpareServers: ptr(2),
+		MaxSpareServers: ptr(6),
+		MaxRequests:     ptr(500),
+	})
+	if err != nil {
+		t.Fatalf("ResolvePM failed: %v", err)
+	}
+
+	content := generatePoolWithPM(t, &pm)
+
+	for _, want := range []string{
+		"pm = dynamic",
+		"pm.max_children = 12",
+		"pm.start_servers = 4",
+		"pm.min_spare_servers = 2",
+		"pm.max_spare_servers = 6",
+		"pm.max_requests = 500",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Pool content should contain %q", want)
+		}
+	}
+}
+
+func TestPoolConfig_OnDemandOmitsSpareServers(t *testing.T) {
+	pm, err := config.ResolvePM(nil, &config.PMConfig{
+		Mode:               config.PMModeOnDemand,
+		MaxChildren:        ptr(10),
+		ProcessIdleTimeout: "30s",
+	})
+	if err != nil {
+		t.Fatalf("ResolvePM failed: %v", err)
+	}
+
+	content := generatePoolWithPM(t, &pm)
+
+	for _, want := range []string{
+		"pm = ondemand",
+		"pm.max_children = 10",
+		"pm.process_idle_timeout = 30s",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Pool content should contain %q", want)
+		}
+	}
+
+	// Spare-server directives are invalid for ondemand and must not be emitted.
+	for _, unwanted := range []string{"pm.start_servers", "pm.min_spare_servers", "pm.max_spare_servers"} {
+		if strings.Contains(content, unwanted) {
+			t.Errorf("ondemand pool must not contain %q", unwanted)
+		}
+	}
+}
+
+func TestPoolConfig_StaticOmitsDynamicDirectives(t *testing.T) {
+	pm, err := config.ResolvePM(nil, &config.PMConfig{
+		Mode:        config.PMModeStatic,
+		MaxChildren: ptr(6),
+	})
+	if err != nil {
+		t.Fatalf("ResolvePM failed: %v", err)
+	}
+
+	content := generatePoolWithPM(t, &pm)
+
+	if !strings.Contains(content, "pm = static") {
+		t.Error("Pool content should contain \"pm = static\"")
+	}
+	if !strings.Contains(content, "pm.max_children = 6") {
+		t.Error("Pool content should contain \"pm.max_children = 6\"")
+	}
+	for _, unwanted := range []string{"pm.start_servers", "pm.min_spare_servers", "pm.max_spare_servers", "pm.process_idle_timeout"} {
+		if strings.Contains(content, unwanted) {
+			t.Errorf("static pool must not contain %q", unwanted)
+		}
+	}
+}
+
+// A nil pm argument must keep the historical defaults, so existing installs are
+// unaffected by the feature.
+func TestPoolConfig_NilPMUsesBuiltInDefaults(t *testing.T) {
+	content := generatePoolWithPM(t, nil)
+
+	for _, want := range []string{
+		"pm = dynamic",
+		"pm.max_children = 50",
+		"pm.start_servers = 8",
+		"pm.min_spare_servers = 4",
+		"pm.max_spare_servers = 12",
+		"pm.max_requests = 1000",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Pool content should contain default %q", want)
+		}
+	}
+}
+
+func ptr(i int) *int { return &i }
+
 func TestPoolConfig_Defaults(t *testing.T) {
 	g, _ := setupTestPoolGenerator(t)
 
 	// Generate and read back to verify defaults
-	if err := g.Generate("testproject", "/tmp/testproject", "8.2", nil, nil, false); err != nil {
+	if err := g.Generate("testproject", "/tmp/testproject", "8.2", nil, nil, false, nil); err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
 
@@ -253,7 +374,8 @@ func TestPoolTemplateValidity(t *testing.T) {
 	expectedSections := []string{
 		"[{{.ProjectName}}]",
 		"listen = {{.SocketPath}}",
-		"pm = dynamic",
+		"pm = {{.PMMode}}",
+		"pm.max_children = {{.MaxChildren}}",
 		"php_admin_value[error_log] = {{.LogPath}}",
 		"{{range $key, $value := .PHPINI}}",
 		"{{range $key, $value := .Env}}",
@@ -352,7 +474,7 @@ func TestGenerate_WithPHPINI(t *testing.T) {
 		"display_errors": "On",
 	}
 
-	err := g.Generate("testproject", "/tmp/testproject", "8.2", nil, phpIni, false)
+	err := g.Generate("testproject", "/tmp/testproject", "8.2", nil, phpIni, false, nil)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}
@@ -378,7 +500,7 @@ func TestGenerate_WithPHPINI(t *testing.T) {
 func TestGenerate_WithMailpit(t *testing.T) {
 	g, tmpDir := setupTestPoolGenerator(t)
 
-	err := g.Generate("testproject", "/tmp/testproject", "8.2", nil, nil, true)
+	err := g.Generate("testproject", "/tmp/testproject", "8.2", nil, nil, true, nil)
 	if err != nil {
 		t.Fatalf("Generate failed: %v", err)
 	}

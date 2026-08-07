@@ -226,7 +226,8 @@ func TestIsolatedFPMConfig_Template(t *testing.T) {
 		"error_log = {{.ErrorLogPath}}",
 		"[{{.ProjectName}}]",
 		"listen = {{.SocketPath}}",
-		"pm = dynamic",
+		"pm = {{.PMMode}}",
+		"pm.max_children = {{.MaxChildren}}",
 		"{{range $key, $value := .SystemSettings}}",
 		"{{range $key, $value := .PoolSettings}}",
 	}
