@@ -5,6 +5,25 @@ All notable changes to MageBox will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-08-10
+
+### Added
+
+- **`mysql-client` as a Managed Dependency** - magerun2's database commands (`db:info`, `db:dump`, …) shell out to `mysql`/`mysqldump`, but MageBox never checked for them, so those commands failed with no useful explanation. `magebox bootstrap` now detects `mysqldump` alongside Docker, Nginx and mkcert, includes `mysql-client` in the missing-dependency prompt, and installs it per platform (`mysql-client` on Homebrew, `default-mysql-client` on Ubuntu/Debian, `community-mysql` on Fedora, `mariadb-clients` on Arch). On macOS the formula is keg-only, so bootstrap prints the shell-specific line needed to put it on `PATH` and warns — without failing — when `mysqldump` is still missing afterwards. `magebox check` reports `mysql-client` status in its magerun2 section and surfaces the install command. ([#114](https://github.com/qoliber/magebox/pull/114))
+- **Magento 2.4.9 and MageOS 3.3.0** - Added to the version registry. ([#135](https://github.com/qoliber/magebox/pull/135))
+
+### Changed
+
+- **BREAKING: One Shared Search Container Per Engine** - The global compose file was generated per search version, so each requested version got its own container, container name, volumes, and version-derived host port (OpenSearch 2.19 → `9259`, Elasticsearch 7.17 → `9657`). A machine running several projects on different versions therefore ran several search containers, each holding its own JVM heap. MageBox now runs at most one OpenSearch and one Elasticsearch container for the whole machine, shared across every project, on fixed host ports: OpenSearch `9200`, Elasticsearch `9500` (distinct so both engines can run simultaneously). Service names (`opensearch`/`elasticsearch`), container names (`magebox-opensearch`/`magebox-elasticsearch`) and volumes (`opensearch_data`, `opensearch_plugins`, …) lost their version suffix. When projects request different versions, the version from global config wins, otherwise the highest requested version is used; the container is provisioned with the largest `memory` any project asks for. `GetOpenSearchPort`/`GetElasticsearchPort` return the fixed ports and no longer take a version argument, and the version→port helpers were removed. `status`, service-name matching, `magebox new` and `magebox check` follow the fixed names and ports. ([#129](https://github.com/qoliber/magebox/pull/129))
+
+  **Upgrading:** projects configured against a version-derived port must be repointed to `9200`/`9500`, and the new container starts on a fresh volume, so `catalogsearch_fulltext` needs a reindex. The old per-version containers and volumes are orphaned and can be removed. See [Upgrading from MageBox 1.x](https://magebox.dev/guide/search#upgrading-from-1x) for the full procedure. Only rebuildable search indices are affected — no persistent data is lost.
+
+### Fixed
+
+- **Varnish Crash-Looped with Multiple Projects** - `buildVCLConfig` emitted one backend per registered project, but the template only ever references `DefaultBackend`. Varnish 7.x treats a defined-but-unused backend as a fatal compile error, so with two or more projects the shared `magebox-varnish` container failed to compile its VCL and crash-looped, returning 502 on every request and recurring on each `magebox start`. Every generated backend was identical anyway, since Nginx already routes to the right project by `Host` header, so the VCL now emits a single `magento` backend. The health probe also used `HEAD /` expecting `301` while Magento returns `302`, which marked the backend sick and returned 503; it now probes `GET /health_check.php` expecting `200`. Both the embedded template and the `lib/templates` copy are fixed — the previous attempt patched only the latter, which is not the one rendered at runtime. ([#131](https://github.com/qoliber/magebox/pull/131))
+- **Stale Container Names in OpenSearch Service Docs** - The troubleshooting and container-logs examples still referenced `magebox-opensearch-2.19` instead of the shared `magebox-opensearch` container.
+- **Order-Dependent Search Version Test** - `TestComposeService_Elasticsearch_FixedPortAndVolumes` resolved a `major.minor` version without the Docker Hub mock installed, so it queried the real API and cached the unresolved fallback in the package-level tag cache, intermittently failing `TestResolveElasticsearchVersion` on CI depending on test order.
+
 ## [1.19.1] - 2026-08-07
 
 ### Fixed

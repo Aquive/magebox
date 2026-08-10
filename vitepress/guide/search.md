@@ -75,6 +75,59 @@ services:
 Each engine runs as a single shared container on a fixed port. OpenSearch and
 Elasticsearch use different ports so both can run at the same time.
 
+## Upgrading from MageBox 1.x {#upgrading-from-1x}
+
+Before 2.0, MageBox ran one search container per requested version, each on a
+version-derived host port — OpenSearch 2.19 on `9259`, Elasticsearch 7.17 on
+`9657`, and so on. From 2.0 there is a single container per engine on a fixed
+port: OpenSearch on `9200`, Elasticsearch on `9500`.
+
+After upgrading:
+
+1. **Point Magento at the new port.** Any project configured against a
+   version-derived port must be updated to `9200` (OpenSearch) or `9500`
+   (Elasticsearch):
+
+   ```bash
+   php bin/magento config:set catalog/search/opensearch_server_port 9200
+   php bin/magento cache:flush
+   ```
+
+   Projects already on `9200` — which MageBox additionally mapped when only one
+   search service was configured — need no change.
+
+2. **Reindex.** The new container uses a fresh volume, so it starts empty:
+
+   ```bash
+   php bin/magento indexer:reindex catalogsearch_fulltext
+   ```
+
+3. **Remove the old containers and volumes.** They are orphaned after the
+   upgrade and keep consuming disk and memory. The old names carry the version
+   they were created for, so list them before removing:
+
+   ```bash
+   # Old containers: magebox-opensearch-2.19.4, magebox-elasticsearch-7.17, …
+   docker ps -a --format '{{.Names}}' | grep -E 'magebox-(opensearch|elasticsearch)-'
+
+   # Old volumes: magebox_opensearch2194_data, magebox_elasticsearch717_plugins, …
+   docker volume ls --format '{{.Name}}' | grep -E 'magebox_(opensearch|elasticsearch)[0-9]+_'
+   ```
+
+   Then remove what those two commands list:
+
+   ```bash
+   docker rm -f magebox-opensearch-2.19.4
+   docker volume rm magebox_opensearch2194_data magebox_opensearch2194_plugins
+   ```
+
+   The new shared containers (`magebox-opensearch`, `magebox-elasticsearch`) and
+   their volumes (`magebox_opensearch_data`, …) carry no version digits, so the
+   patterns above never match them.
+
+Only rebuildable search indices live in these volumes, so nothing needs to be
+backed up first.
+
 ## Magento Configuration
 
 ::: warning Use your project name as index prefix

@@ -482,9 +482,12 @@ func TestComposeService_OpenSearch_FixedPortAndVolumes(t *testing.T) {
 func TestComposeService_Elasticsearch_FixedPortAndVolumes(t *testing.T) {
 	g, _ := setupTestComposeGenerator(t)
 
+	// A full version passes through without a Docker Hub query. A major.minor here
+	// would hit the real API and cache the unresolved fallback in resolvedTags,
+	// making TestResolveElasticsearchVersion fail depending on test order.
 	svcCfg := &config.ServiceConfig{
 		Enabled: true,
-		Version: "7.17",
+		Version: "7.17.28",
 	}
 	svc := g.getElasticsearchService(svcCfg)
 
@@ -1308,6 +1311,7 @@ func TestSelectSearchService(t *testing.T) {
 			}
 			if cfg == nil {
 				t.Fatal("cfg = nil, want non-nil")
+				return
 			}
 			if cfg.Version != tt.wantVersion {
 				t.Errorf("cfg.Version = %q, want %q", cfg.Version, tt.wantVersion)

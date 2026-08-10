@@ -196,16 +196,16 @@ docker ps | grep elasticsearch
 ### Container Logs
 
 ```bash
-docker logs magebox-opensearch-2.19
+docker logs magebox-opensearch
 
 # Follow logs
-docker logs -f magebox-opensearch-2.19
+docker logs -f magebox-opensearch
 ```
 
 ### Restart Container
 
 ```bash
-docker restart magebox-opensearch-2.19
+docker restart magebox-opensearch
 ```
 
 ## Memory Configuration
@@ -334,7 +334,7 @@ If Magento reports missing ICU or phonetic plugin:
 curl http://127.0.0.1:9200/_cat/plugins?v
 
 # If missing, restart container (MageBox installs them automatically)
-docker restart magebox-opensearch-2.19
+docker restart magebox-opensearch
 ```
 
 ## Elasticvue Web UI
