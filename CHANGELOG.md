@@ -5,6 +5,18 @@ All notable changes to MageBox will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-09-01
+
+### Added
+
+- **Magento 2.4.8-p5 and MageOS 3.4.0** - Added to the version registry; MageOS 3.4.0 is now the default MageOS version. ([#137](https://github.com/qoliber/magebox/pull/137))
+
+### Fixed
+
+- **`magebox db` Commands Failed with Exit 127 on MariaDB 11.x** - Every `db` subcommand shelled out to a hardcoded `mysql`, `mysqldump` or `mysqladmin` inside the database container, but MariaDB 11.0 removed those compatibility symlinks in favour of `mariadb`, `mariadb-dump` and `mariadb-admin`. On a project configured with MariaDB 11.x, `db import`, `db export`, `db shell`, `db create`, `db drop`, `db reset`, `db top` and both `db snapshot` commands therefore failed with exit 127 and no useful message. New `docker.DBClientBin`/`docker.DBDumpBin` helpers resolve the right binary from the configured database type and version, and every call site — including the `magebox check` database probe and `internal/project/lifecycle.go` — now goes through them. MySQL and MariaDB 10.x are unaffected and keep using the `mysql*` binaries. ([#142](https://github.com/qoliber/magebox/pull/142))
+- **Outdated Port Forwarding Daemon After a Binary Upgrade** - Upgrading via Homebrew or `magebox selfupdate` replaces only the binary; the installed LaunchDaemon was upgraded exclusively by `magebox bootstrap`, so users silently kept running an old daemon generation — including the removed pf-based approach — until they happened to run bootstrap again. `EnsureRulesActive` now reconciles daemon state on every `magebox start`: a daemon missing the current plist version marker is reinstalled, an inactive one is kickstarted, and an installed, current, responding daemon is left alone. The decision logic lives in a pure `nextAction()` function with table-driven tests. The misleading `sudo launchctl list` hint — which shows the job even when it does nothing useful — was replaced with the kickstart command that actually restarts it, and the FAQ entries that still described the removed pf anchor mechanism were updated. ([#138](https://github.com/qoliber/magebox/pull/138))
+- **Team Server TLS Config Failed Lint and gofmt** - `internal/teamserver/server.go` set the deprecated `PreferServerCipherSuites` field (a no-op since Go 1.17, flagged by staticcheck) and was not gofmt-clean, breaking `make lint` on main. ([#140](https://github.com/qoliber/magebox/pull/140), [#141](https://github.com/qoliber/magebox/pull/141))
+
 ## [2.0.0] - 2026-08-10
 
 ### Added
