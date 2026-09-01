@@ -605,7 +605,7 @@ func runBootstrap(cmd *cobra.Command, args []string) error {
 		if err := pfMgr.Setup(); err != nil {
 			fmt.Println(cli.Error("failed"))
 			cli.PrintWarning("Port forwarding setup failed: %v", err)
-			cli.PrintWarning("Run 'magebox bootstrap' again or check: sudo launchctl list com.magebox.portforward")
+			cli.PrintWarning("Run 'magebox bootstrap' again or try: sudo launchctl kickstart -k system/com.magebox.portforward")
 			errors = append(errors, "Port forwarding setup failed")
 		} else {
 			fmt.Println(cli.Success("done"))
